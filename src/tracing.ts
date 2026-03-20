@@ -48,8 +48,7 @@ export function setupOtel(serviceName: string): void {
   const provider = new NodeTracerProvider({ resource })
 
   // PII masking processor runs first so span attributes are scrubbed before export
-  provider.addSpanProcessor(new PIIMaskingSpanProcessor())
-  provider.addSpanProcessor(new BatchSpanProcessor(new OTLPTraceExporter()))
+  provider.addSpanProcessor(new PIIMaskingSpanProcessor(new BatchSpanProcessor(new OTLPTraceExporter())))
 
   provider.register()
 }

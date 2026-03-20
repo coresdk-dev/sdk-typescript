@@ -10,10 +10,26 @@
       "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
-    "./middleware/express": "./dist/middleware/express.js",
-    "./middleware/fastify": "./dist/middleware/fastify.js",
-    "./middleware/next": "./dist/middleware/next.js",
-    "./testing": "./dist/testing.js"
+    "./middleware/express": {
+      "import": "./dist/middleware/express.mjs",
+      "require": "./dist/middleware/express.js",
+      "types": "./dist/middleware/express.d.ts"
+    },
+    "./middleware/fastify": {
+      "import": "./dist/middleware/fastify.mjs",
+      "require": "./dist/middleware/fastify.js",
+      "types": "./dist/middleware/fastify.d.ts"
+    },
+    "./middleware/next": {
+      "import": "./dist/middleware/next.mjs",
+      "require": "./dist/middleware/next.js",
+      "types": "./dist/middleware/next.d.ts"
+    },
+    "./testing": {
+      "import": "./dist/testing.mjs",
+      "require": "./dist/testing.js",
+      "types": "./dist/testing.d.ts"
+    }
   },
   "scripts": {
     "build": "tsup",
@@ -23,8 +39,6 @@
     "lint:fix": "eslint src --ext .ts --fix"
   },
   "dependencies": {
-    "@connectrpc/connect": "^1.4.0",
-    "@connectrpc/connect-node": "^1.4.0",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-trace-otlp-grpc": "^0.56.0",
     "@opentelemetry/resources": "^1.29.0",

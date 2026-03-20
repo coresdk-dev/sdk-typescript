@@ -29,10 +29,27 @@ export async function trace<T>(
 }
 
 export function setupOtel(serviceName: string): void {
-  // Only configure if no global provider exists
-  if (otelTrace.getActiveSpan() !== undefined) return
-  // In production: configure OTLP exporter pointing at sidecar
-  // NodeSDK setup would go here
-  // eslint-disable-next-line no-console
-  console.info(`[coresdk] OTel setup for service: ${serviceName}`)
+  // Avoid double-init if a provider is already registered
+  const existingProvider = otelTrace.getTracerProvider()
+  // The NoopTracerProvider has no 'resource' property — detect real providers
+  if ('resource' in existingProvider) return
+
+  const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node') as typeof import('@opentelemetry/sdk-trace-node')
+  const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc') as typeof import('@opentelemetry/exporter-trace-otlp-grpc')
+  const { Resource } = require('@opentelemetry/resources') as typeof import('@opentelemetry/resources')
+  const { ATTR_SERVICE_NAME } = require('@opentelemetry/semantic-conventions') as typeof import('@opentelemetry/semantic-conventions')
+  const { BatchSpanProcessor } = require('@opentelemetry/sdk-trace-node') as typeof import('@opentelemetry/sdk-trace-node')
+  const { PIIMaskingSpanProcessor } = require('./masking/index.js') as typeof import('./masking/index.js')
+
+  const resource = new Resource({
+    [ATTR_SERVICE_NAME]: serviceName,
+  })
+
+  const provider = new NodeTracerProvider({ resource })
+
+  // PII masking processor runs first so span attributes are scrubbed before export
+  provider.addSpanProcessor(new PIIMaskingSpanProcessor())
+  provider.addSpanProcessor(new BatchSpanProcessor(new OTLPTraceExporter()))
+
+  provider.register()
 }

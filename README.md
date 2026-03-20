@@ -34,8 +34,10 @@ app.use(coreSDKMiddleware({ sdk }))
 
 ## Environment variables
 
-| Variable | Default |
-|----------|---------|
-| `CORESDK_ENDPOINT` | `http://127.0.0.1:50051` |
-| `CORESDK_TENANT_ID` | (required) |
-| `CORESDK_FAIL_MODE` | `open` |
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `CORESDK_SIDECAR_ADDR` | `localhost:50051` | gRPC address of the sidecar |
+| `CORESDK_TENANT_ID` | | Your tenant identifier |
+| `CORESDK_FAIL_MODE` | `open` | `open` = allow on sidecar error; `closed` = deny |
+
+> `CORESDK_ENDPOINT` is accepted as a deprecated alias for `CORESDK_SIDECAR_ADDR`.

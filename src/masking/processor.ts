@@ -48,9 +48,9 @@ export class PIIMaskingSpanProcessor implements SpanProcessor {
     const attrs = span.attributes
     for (const [key, value] of Object.entries(attrs)) {
       if (isBlockedField(key)) {
-        ;(attrs as Record<string, unknown>)[key] = '[REDACTED]'
+        (attrs as Record<string, unknown>)[key] = '[REDACTED]'
       } else if (typeof value === 'string') {
-        ;(attrs as Record<string, unknown>)[key] = maskValue(value)
+        (attrs as Record<string, unknown>)[key] = maskValue(value)
       }
     }
     this.downstream.onEnd(span)

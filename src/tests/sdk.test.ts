@@ -51,12 +51,12 @@ describe('PII masking', () => {
   })
 
   it('assertNoPii passes clean spans', () => {
-    expect(() => assertNoPii([{ attributes: { 'http.method': 'GET', 'http.status_code': '200' } }])).not.toThrow()
+    expect(() => { assertNoPii([{ attributes: { 'http.method': 'GET', 'http.status_code': '200' } }]); }).not.toThrow()
   })
 
   it('assertNoPii throws on email in span', () => {
     expect(() =>
-      assertNoPii([{ attributes: { 'user.email': 'alice@example.com' } }]),
+      { assertNoPii([{ attributes: { 'user.email': 'alice@example.com' } }]); },
     ).toThrow('PII found')
   })
 })

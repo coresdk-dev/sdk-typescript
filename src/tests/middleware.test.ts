@@ -56,7 +56,7 @@ describe('coreSDKMiddleware', () => {
     const middleware = coreSDKMiddleware({ sdk })
     await new Promise<void>((resolve) => {
       const wrappedNext: NextFunction = (...args) => {
-        ;(next as ReturnType<typeof vi.fn>)(...args)
+        (next as ReturnType<typeof vi.fn>)(...args)
         resolve()
       }
       middleware(req, res, wrappedNext)
@@ -70,15 +70,15 @@ describe('coreSDKMiddleware', () => {
     const res = mockRes()
     const middleware = requireAuth(sdk)
     await new Promise<void>((resolve) => {
-      middleware(req, res, () => resolve())
+      middleware(req, res, () => { resolve(); })
       // the handler returns immediately for missing token
       resolve()
     })
     expect(res._status).toBe(401)
     const body = res._body as Record<string, unknown>
-    expect(body['type']).toBe('https://coresdk.io/errors/unauthorized')
-    expect(body['status']).toBe(401)
-    expect(typeof body['title']).toBe('string')
+    expect(body.type).toBe('https://coresdk.io/errors/unauthorized')
+    expect(body.status).toBe(401)
+    expect(typeof body.title).toBe('string')
   })
 
   it('returns 403 when SDK denies the request', async () => {
@@ -87,12 +87,12 @@ describe('coreSDKMiddleware', () => {
     const res = mockRes()
     const middleware = coreSDKMiddleware({ sdk })
     await new Promise<void>((resolve) => {
-      middleware(req, res, () => resolve())
+      middleware(req, res, () => { resolve(); })
       setTimeout(resolve, 200)
     })
     expect(res._status).toBe(403)
     const body = res._body as Record<string, unknown>
-    expect(body['type']).toBe('https://coresdk.io/errors/forbidden')
+    expect(body.type).toBe('https://coresdk.io/errors/forbidden')
   })
 })
 
@@ -106,24 +106,24 @@ describe('assertNoPII', () => {
       { attributes: { 'http.method': 'GET', 'http.status_code': '200' } },
       { attributes: { 'coresdk.tenant_id': 'acme-corp' } },
     ]
-    expect(() => assertNoPII(spans)).not.toThrow()
+    expect(() => { assertNoPII(spans); }).not.toThrow()
   })
 
   it('throws when a span attribute contains an email address', () => {
     const spans = [
       { attributes: { 'user.email': 'alice@example.com', 'http.method': 'POST' } },
     ]
-    expect(() => assertNoPII(spans)).toThrow('PII found')
+    expect(() => { assertNoPII(spans); }).toThrow('PII found')
   })
 
   it('throws when a span attribute contains an SSN', () => {
     const spans = [{ attributes: { 'user.ssn': '123-45-6789' } }]
-    expect(() => assertNoPII(spans)).toThrow('PII found')
+    expect(() => { assertNoPII(spans); }).toThrow('PII found')
   })
 
   it('throws when a span attribute contains a Bearer token', () => {
     const spans = [{ attributes: { 'http.request.header.authorization': 'Bearer eyJhbGciOiJSUzI1NiJ9.abc' } }]
-    expect(() => assertNoPII(spans)).toThrow('PII found')
+    expect(() => { assertNoPII(spans); }).toThrow('PII found')
   })
 })
 
@@ -135,14 +135,16 @@ describe('FakeSpanExporter', () => {
   it('collects exported spans', () => {
     const exporter = new FakeSpanExporter()
     const fakeSpan = { attributes: { 'http.method': 'GET' } } as unknown as import('@opentelemetry/sdk-trace-node').ReadableSpan
-    exporter.export([fakeSpan], () => {})
+    exporter.export([fakeSpan], // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (_result) => { /* no-op result callback */ })
     expect(exporter.spans).toHaveLength(1)
   })
 
   it('reset clears spans', () => {
     const exporter = new FakeSpanExporter()
     const fakeSpan = { attributes: {} } as unknown as import('@opentelemetry/sdk-trace-node').ReadableSpan
-    exporter.export([fakeSpan], () => {})
+    exporter.export([fakeSpan], // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (_result) => { /* no-op result callback */ })
     exporter.reset()
     expect(exporter.spans).toHaveLength(0)
   })

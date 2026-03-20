@@ -12,8 +12,8 @@ export interface MockSDKOptions {
 }
 
 export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy'> {
-  readonly authorizeCalls: Array<{ token: string; resource: string; action: string }> = []
-  readonly policyEvalCalls: Array<{ rule: string; input: Record<string, unknown> }> = []
+  readonly authorizeCalls: { token: string; resource: string; action: string }[] = []
+  readonly policyEvalCalls: { rule: string; input: Record<string, unknown> }[] = []
 
   private readonly defaultAllow: boolean
   private readonly defaultClaims: Claims
@@ -29,14 +29,14 @@ export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy'> {
     }
   }
 
-  async authorize(token: string, resource: string, action: string): Promise<AuthDecision> {
+  authorize(token: string, resource: string, action: string): Promise<AuthDecision> {
     this.authorizeCalls.push({ token, resource, action })
-    return { allowed: this.defaultAllow, claims: this.defaultClaims }
+    return Promise.resolve({ allowed: this.defaultAllow, claims: this.defaultClaims })
   }
 
-  async evaluatePolicy(rule: string, input: Record<string, unknown>): Promise<PolicyResult> {
+  evaluatePolicy(rule: string, input: Record<string, unknown>): Promise<PolicyResult> {
     this.policyEvalCalls.push({ rule, input })
-    return { result: this.defaultAllow, allowed: this.defaultAllow, tenantId: this.defaultClaims.tenantId }
+    return Promise.resolve({ result: this.defaultAllow, allowed: this.defaultAllow, tenantId: this.defaultClaims.tenantId })
   }
 
   static fromEnv(): MockSDK { return new MockSDK() }
@@ -61,12 +61,12 @@ export class FakeSpanExporter implements SpanExporter {
 }
 
 /** Assert that no span attribute value contains PII patterns (alias with uppercase PII) */
-export function assertNoPII(spans: Array<{ attributes: Record<string, unknown> }>): void {
-  return assertNoPii(spans)
+export function assertNoPII(spans: { attributes: Record<string, unknown> }[]): void {
+  assertNoPii(spans);
 }
 
 /** Assert that no span attribute value contains PII patterns */
-export function assertNoPii(spans: Array<{ attributes: Record<string, unknown> }>): void {
+export function assertNoPii(spans: { attributes: Record<string, unknown> }[]): void {
   const patterns = [
     /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
     /\b\d{3}-\d{2}-\d{4}\b/,

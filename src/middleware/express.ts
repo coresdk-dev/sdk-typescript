@@ -31,7 +31,7 @@ export function coreSDKMiddleware(opts: ExpressMiddlewareOptions): RequestHandle
       return
     }
 
-    tracer.startActiveSpan('coresdk.auth', async (span) => {
+    void tracer.startActiveSpan('coresdk.auth', async (span) => {
       try {
         const decision = await opts.sdk.authorize(token, req.path, req.method)
         if (!decision.allowed) {
@@ -45,7 +45,7 @@ export function coreSDKMiddleware(opts: ExpressMiddlewareOptions): RequestHandle
         }
         span.setStatus({ code: SpanStatusCode.OK })
         await withClaims(decision.claims, () => new Promise<void>((resolve) => {
-          ;(req as Request & { claims: unknown }).claims = decision.claims
+          (req as Request & { claims: unknown }).claims = decision.claims
           next()
           resolve()
         }))

@@ -1,5 +1,4 @@
-import { context, trace as otelTrace, SpanStatusCode, type Span } from '@opentelemetry/api'
-import type { Claims } from './sdk.js'
+import { trace as otelTrace, SpanStatusCode, type Span } from '@opentelemetry/api'
 import { claimsFrom } from './context.js'
 
 export const tracer = otelTrace.getTracer('coresdk', '0.1.0')
@@ -34,5 +33,6 @@ export function setupOtel(serviceName: string): void {
   if (otelTrace.getActiveSpan() !== undefined) return
   // In production: configure OTLP exporter pointing at sidecar
   // NodeSDK setup would go here
+  // eslint-disable-next-line no-console
   console.info(`[coresdk] OTel setup for service: ${serviceName}`)
 }

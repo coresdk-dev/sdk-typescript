@@ -1,4 +1,3 @@
-import { CoreSDKError } from './errors.js'
 
 export interface SDKConfig {
   endpoint: string
@@ -31,9 +30,9 @@ export interface PolicyResult {
 }
 
 function configFromEnv(): SDKConfig {
-  const endpoint = process.env['CORESDK_ENDPOINT'] ?? 'http://127.0.0.1:50051'
-  const tenantId = process.env['CORESDK_TENANT_ID'] ?? ''
-  const failMode = (process.env['CORESDK_FAIL_MODE'] ?? 'open') as 'open' | 'closed'
+  const endpoint = process.env.CORESDK_ENDPOINT ?? 'http://127.0.0.1:50051'
+  const tenantId = process.env.CORESDK_TENANT_ID ?? ''
+  const failMode = (process.env.CORESDK_FAIL_MODE ?? 'open') as 'open' | 'closed'
   return { endpoint, tenantId, failMode }
 }
 
@@ -52,9 +51,10 @@ function deriveRestEndpoint(endpoint: string): string {
   const portMatch = base.match(/^(https?:\/\/[^:/?#]+):(\d+)(\/.*)?$/)
   if (portMatch) {
     const [, host, , path] = portMatch
-    return `${host}:8080${path ?? ''}`
+    return `${host ?? ''}:8080${path ?? ''}`
   }
   // No port found — use as-is
+  // eslint-disable-next-line no-console
   console.warn('[coresdk] Could not derive REST endpoint from gRPC endpoint, using as-is:', base)
   return base
 }
@@ -87,6 +87,7 @@ export class SDK {
     } catch (err) {
       if (this.config.failMode === 'closed') throw err
       // fail-open: allow but log
+      // eslint-disable-next-line no-console
       console.warn('[coresdk] authorize fail-open:', err)
       return {
         allowed: true,
@@ -110,6 +111,7 @@ export class SDK {
       }
     } catch (err) {
       if (this.config.failMode === 'closed') throw err
+      // eslint-disable-next-line no-console
       console.warn('[coresdk] evaluatePolicy fail-open:', err)
       return { result: null, allowed: true, tenantId: this.config.tenantId }
     }
@@ -137,10 +139,11 @@ export class SDK {
     })
 
     if (!response.ok) {
-      const problem = await response.json().catch(() => ({}))
-      throw Object.assign(new Error(problem.title ?? `HTTP ${response.status}`), problem)
+      const problem = (await response.json().catch(() => ({}))) as Record<string, unknown>
+      const title = typeof problem.title === 'string' ? problem.title : `HTTP ${String(response.status)}`
+      throw Object.assign(new Error(title), problem)
     }
 
-    return response.json()
+    return response.json() as Promise<Record<string, unknown>>
   }
 }

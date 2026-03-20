@@ -11,7 +11,7 @@ export interface MockSDKOptions {
   claims?: Partial<Claims>
 }
 
-export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy'> {
+export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEnabled'> {
   readonly authorizeCalls: { token: string; resource: string; action: string }[] = []
   readonly policyEvalCalls: { rule: string; input: Record<string, unknown> }[] = []
 
@@ -37,6 +37,10 @@ export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy'> {
   evaluatePolicy(rule: string, input: Record<string, unknown>): Promise<PolicyResult> {
     this.policyEvalCalls.push({ rule, input })
     return Promise.resolve({ result: this.defaultAllow, allowed: this.defaultAllow, tenantId: this.defaultClaims.tenantId })
+  }
+
+  isEnabled(_flagKey: string): Promise<boolean> {
+    return Promise.resolve(this.defaultAllow)
   }
 
   static fromEnv(): MockSDK { return new MockSDK() }

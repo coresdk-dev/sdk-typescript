@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import type { SDK } from '../sdk.js'
+import { isEdgeRuntime } from '../sdk.js'
 
 export interface NextMiddlewareOptions {
   sdk: SDK
@@ -58,6 +59,11 @@ export async function coreSdkNextMiddleware(
   }
 
   try {
+    if (isEdgeRuntime) {
+      // eslint-disable-next-line no-console
+      console.warn('[coresdk] Edge Runtime detected — gRPC transport unavailable, passing through. Use control plane REST API for edge auth.')
+      return NextResponse.next()
+    }
     const decision = await opts.sdk.authorize(token, path, req.method)
     if (!decision.allowed) {
       return NextResponse.json(

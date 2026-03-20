@@ -37,7 +37,7 @@ export function unauthorizedError(detail?: string): CoreSDKError {
     type: 'https://coresdk.io/errors/unauthorized',
     title: 'Unauthorized',
     status: 401,
-    detail,
+    ...(detail !== undefined && { detail }),
   })
 }
 
@@ -46,6 +46,6 @@ export function forbiddenError(detail?: string): CoreSDKError {
     type: 'https://coresdk.io/errors/forbidden',
     title: 'Forbidden',
     status: 403,
-    detail,
+    ...(detail !== undefined && { detail }),
   })
 }

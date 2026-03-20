@@ -21,6 +21,7 @@
       "types": "./dist/middleware/fastify.d.ts"
     },
     "./middleware/next": {
+      "edge-light": "./dist/middleware/next.mjs",
       "import": "./dist/middleware/next.mjs",
       "require": "./dist/middleware/next.js",
       "types": "./dist/middleware/next.d.ts"

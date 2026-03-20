@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Request, Response, NextFunction } from 'express'
 import { coreSDKMiddleware, requireAuth } from '../middleware/express.js'
+import { coreSdkPlugin } from '../middleware/fastify.js'
 import { MockSDK, assertNoPII, FakeSpanExporter } from '../testing.js'
 
 // ---------------------------------------------------------------------------
@@ -43,7 +44,7 @@ function mockRes(): Response & { _status: number; _body: unknown; _headers: Reco
 
 describe('coreSDKMiddleware', () => {
   let sdk: MockSDK
-  const next: NextFunction = vi.fn()
+  const next = vi.fn() as unknown as NextFunction
 
   beforeEach(() => {
     sdk = new MockSDK()
@@ -53,7 +54,7 @@ describe('coreSDKMiddleware', () => {
   it('calls next() with a valid Bearer token', async () => {
     const req = mockReq({ headers: { authorization: 'Bearer valid-token' } })
     const res = mockRes()
-    const middleware = coreSDKMiddleware({ sdk })
+    const middleware = coreSDKMiddleware({ sdk: sdk as unknown as import('../sdk.js').SDK })
     await new Promise<void>((resolve) => {
       const wrappedNext: NextFunction = (...args) => {
         (next as ReturnType<typeof vi.fn>)(...args)
@@ -68,7 +69,7 @@ describe('coreSDKMiddleware', () => {
   it('returns 401 RFC 9457 when Bearer token is missing', async () => {
     const req = mockReq({ headers: {} })
     const res = mockRes()
-    const middleware = requireAuth(sdk)
+    const middleware = requireAuth(sdk as unknown as import('../sdk.js').SDK)
     await new Promise<void>((resolve) => {
       middleware(req, res, () => { resolve(); })
       // the handler returns immediately for missing token
@@ -85,7 +86,7 @@ describe('coreSDKMiddleware', () => {
     sdk = new MockSDK({ defaultAllow: false })
     const req = mockReq({ headers: { authorization: 'Bearer some-token' } })
     const res = mockRes()
-    const middleware = coreSDKMiddleware({ sdk })
+    const middleware = coreSDKMiddleware({ sdk: sdk as unknown as import('../sdk.js').SDK })
     await new Promise<void>((resolve) => {
       middleware(req, res, () => { resolve(); })
       setTimeout(resolve, 200)
@@ -147,5 +148,59 @@ describe('FakeSpanExporter', () => {
     (_result) => { /* no-op result callback */ })
     exporter.reset()
     expect(exporter.spans).toHaveLength(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Fastify middleware tests (using Fastify's test helpers)
+// ---------------------------------------------------------------------------
+
+describe('coreSdkPlugin (Fastify)', () => {
+  async function buildApp(sdk: MockSDK, required = true) {
+    const { default: Fastify } = await import('fastify')
+    const app = Fastify()
+    // coreSdkPlugin is a Fastify plugin (encapsulated). Register the route
+    // in the same plugin context by wrapping both in a single register call.
+    const sdkRef = sdk as unknown as import('../sdk.js').SDK
+    await app.register(coreSdkPlugin, { sdk: sdkRef, required })
+    // Routes must be in the same context — use after() to ensure plugin is loaded
+    app.get('/api/test', async () => ({ ok: true }))
+    await app.ready()
+    return app
+  }
+
+  it('allows request with valid Bearer token', async () => {
+    const sdk = new MockSDK()
+    const app = await buildApp(sdk)
+    const res = await app.inject({ method: 'GET', url: '/api/test', headers: { authorization: 'Bearer valid-token' } })
+    expect(res.statusCode).toBe(200)
+    expect(sdk.authorizeCalls).toHaveLength(1)
+    expect(sdk.authorizeCalls[0]?.token).toBe('valid-token')
+  })
+
+  it('returns 401 when token is missing', async () => {
+    const sdk = new MockSDK()
+    const app = await buildApp(sdk)
+    const res = await app.inject({ method: 'GET', url: '/api/test' })
+    expect(res.statusCode).toBe(401)
+    const body = JSON.parse(res.body) as Record<string, unknown>
+    expect(body.type).toBe('https://coresdk.io/errors/unauthorized')
+  })
+
+  it('returns 403 when SDK denies the request', async () => {
+    const sdk = new MockSDK({ defaultAllow: false })
+    const app = await buildApp(sdk)
+    const res = await app.inject({ method: 'GET', url: '/api/test', headers: { authorization: 'Bearer some-token' } })
+    expect(res.statusCode).toBe(403)
+    const body = JSON.parse(res.body) as Record<string, unknown>
+    expect(body.type).toBe('https://coresdk.io/errors/forbidden')
+  })
+
+  it('passes through when not required and token is missing', async () => {
+    const sdk = new MockSDK()
+    const app = await buildApp(sdk, false)
+    const res = await app.inject({ method: 'GET', url: '/api/test' })
+    expect(res.statusCode).toBe(200)
+    expect(sdk.authorizeCalls).toHaveLength(0)
   })
 })

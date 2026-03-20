@@ -1,4 +1,4 @@
-export { SDK, type SDKConfig, type AuthDecision, type Claims, type PolicyResult } from './sdk.js'
+export { SDK, isEdgeRuntime, type SDKConfig, type AuthDecision, type Claims, type PolicyResult } from './sdk.js'
 export {
   type ProblemDetail,
   CoreSDKError,

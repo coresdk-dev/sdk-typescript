@@ -9,7 +9,8 @@ export interface FastifyPluginOptions {
 /* eslint-disable @typescript-eslint/require-await */
 // FastifyPluginAsync requires the plugin function signature to be async,
 // even though plugin registration itself is synchronous (hooks are registered via addHook).
-export const coreSdkPlugin: FastifyPluginAsync<FastifyPluginOptions> = async (
+// Skip encapsulation so the hook applies to all routes (equivalent to fastify-plugin).
+const plugin: FastifyPluginAsync<FastifyPluginOptions> = async (
   fastify,
   opts,
 ) => {
@@ -49,3 +50,9 @@ export const coreSdkPlugin: FastifyPluginAsync<FastifyPluginOptions> = async (
     }
   })
 }
+
+// Break Fastify plugin encapsulation so the hook applies to all sibling routes
+// (equivalent to wrapping with fastify-plugin without adding the dependency)
+;(plugin as unknown as Record<string | symbol, unknown>)[Symbol.for('skip-override')] = true
+
+export const coreSdkPlugin = plugin

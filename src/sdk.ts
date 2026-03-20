@@ -1,9 +1,14 @@
-import * as http2 from 'node:http2'
+import { CoreSDKError } from './errors.js'
+
+declare const EdgeRuntime: string | undefined
+
+export const isEdgeRuntime = typeof EdgeRuntime !== 'undefined'
 
 export interface SDKConfig {
   endpoint: string
   tenantId: string
   failMode: 'open' | 'closed'
+  controlPlaneUrl?: string
   tlsCertPath?: string
   tlsKeyPath?: string
   tlsCaPath?: string
@@ -38,7 +43,12 @@ function configFromEnv(): SDKConfig {
     'localhost:50051'
   const tenantId = process.env.CORESDK_TENANT_ID ?? ''
   const failMode = (process.env.CORESDK_FAIL_MODE ?? 'open') as 'open' | 'closed'
-  return { endpoint, tenantId, failMode }
+  const config: SDKConfig = { endpoint, tenantId, failMode }
+  if (process.env.CORESDK_CONTROL_PLANE_URL) config.controlPlaneUrl = process.env.CORESDK_CONTROL_PLANE_URL
+  if (process.env.CORESDK_TLS_CERT_FILE) config.tlsCertPath = process.env.CORESDK_TLS_CERT_FILE
+  if (process.env.CORESDK_TLS_KEY_FILE) config.tlsKeyPath = process.env.CORESDK_TLS_KEY_FILE
+  if (process.env.CORESDK_TLS_CA_FILE) config.tlsCaPath = process.env.CORESDK_TLS_CA_FILE
+  return config
 }
 
 // ---------------------------------------------------------------------------
@@ -151,14 +161,40 @@ function grpcCall(
   authority: string,
   path: string,
   payload: Buffer,
+  config?: SDKConfig,
   timeoutMs = 5000,
 ): Promise<Buffer> {
+  if (isEdgeRuntime) {
+    throw new CoreSDKError({
+      type: 'https://coresdk.io/errors/edge-runtime',
+      title: 'Edge Runtime: gRPC transport unavailable',
+      status: 500,
+      detail: 'Edge Runtime does not support node:http2. Use the control plane REST API or call isEnabled() for flag checks.',
+    })
+  }
+
   return new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const http2 = require('node:http2') as typeof import('node:http2')
+
     const url = authority.startsWith('http')
       ? authority
       : `http://${authority}`
 
-    const session = http2.connect(url)
+    let tlsOptions: Record<string, unknown> | undefined
+    if (config?.tlsCertPath && config.tlsKeyPath) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const fs = require('node:fs') as typeof import('node:fs')
+      tlsOptions = {
+        cert: fs.readFileSync(config.tlsCertPath),
+        key: fs.readFileSync(config.tlsKeyPath),
+        ...(config.tlsCaPath ? { ca: fs.readFileSync(config.tlsCaPath) } : {}),
+      }
+    }
+
+    const session = tlsOptions
+      ? http2.connect(url.replace(/^http:/, 'https:'), tlsOptions)
+      : http2.connect(url)
     let settled = false
     const timer = setTimeout(() => {
       if (!settled) { settled = true; session.close(); reject(new Error(`gRPC timeout after ${timeoutMs}ms`)) }
@@ -235,6 +271,7 @@ export class SDK {
         this.config.endpoint,
         '/coresdk.v1.AuthService/ValidateToken',
         payload,
+        this.config,
       )
 
       // ValidateTokenResponse: valid(1 bool), subject(2), roles(3 repeated), claims(4 map), expiresAt(5)
@@ -267,16 +304,18 @@ export class SDK {
 
   async evaluatePolicy(rule: string, input: Record<string, unknown>): Promise<PolicyResult> {
     try {
-      // PolicyEvaluateRequest: rule(1), inputJson(2)
+      // PolicyEvaluateRequest: rule(1), inputJson(2), tenantId(3)
       const payload = Buffer.concat([
         encodeString(1, rule),
         encodeString(2, JSON.stringify(input)),
+        encodeString(3, this.config.tenantId),
       ])
 
       const responseBytes = await grpcCall(
         this.config.endpoint,
         '/coresdk.v1.PolicyService/Evaluate',
         payload,
+        this.config,
       )
 
       // PolicyEvaluateResponse: result(1 bool), reason(2), dryRun(3 bool)
@@ -293,6 +332,21 @@ export class SDK {
       // eslint-disable-next-line no-console
       console.warn('[coresdk] evaluatePolicy fail-open:', err)
       return { result: null, allowed: true, tenantId: this.config.tenantId }
+    }
+  }
+
+  async isEnabled(flagKey: string): Promise<boolean> {
+    if (!this.config.controlPlaneUrl) {
+      return true // no control plane configured, fail-open
+    }
+    try {
+      const res = await fetch(`${this.config.controlPlaneUrl}/api/v1/flags`)
+      if (!res.ok) throw new Error(`flags endpoint returned ${res.status}`)
+      const flags = (await res.json()) as Record<string, { enabled?: boolean }>
+      return flags[flagKey]?.enabled ?? false
+    } catch (err) {
+      if (this.config.failMode === 'closed') throw err
+      return true // fail-open
     }
   }
 }

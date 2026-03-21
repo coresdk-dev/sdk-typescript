@@ -26,7 +26,7 @@ export class ProblemDetailError extends CoreSDKError {
   static readonly CONTENT_TYPE = 'application/problem+json'
 
   readonly title: string
-  readonly detail?: string
+  readonly detail: string | undefined
 
   constructor(title: string, status: number, detail?: string) {
     const problem: ProblemDetail = {

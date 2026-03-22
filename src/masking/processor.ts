@@ -38,21 +38,24 @@ export class PIIMaskingSpanProcessor implements SpanProcessor {
   }
 
   onStart(span: Span, parentContext: Context): void {
+    // Mask attributes on start when the span is still mutable (ReadWriteSpan).
+    // onEnd() receives a ReadableSpan with frozen attributes — mutating there
+    // is undefined behaviour and silently fails in many OTel SDK versions.
+    const rwSpan = span as Span & { attributes?: Record<string, unknown> }
+    if (rwSpan.attributes) {
+      for (const [key, value] of Object.entries(rwSpan.attributes)) {
+        if (isBlockedField(key)) {
+          (span as unknown as { setAttribute(k: string, v: string): void }).setAttribute(key, '[REDACTED]')
+        } else if (typeof value === 'string') {
+          (span as unknown as { setAttribute(k: string, v: string): void }).setAttribute(key, maskValue(value))
+        }
+      }
+    }
     this.downstream.onStart(span, parentContext)
   }
 
   onEnd(span: ReadableSpan): void {
-    // Mask attributes before forwarding downstream.
-    // ReadableSpan.attributes is nominally read-only, but we own the processor
-    // chain and mutate in-place to avoid allocating a new attributes object.
-    const attrs = span.attributes
-    for (const [key, value] of Object.entries(attrs)) {
-      if (isBlockedField(key)) {
-        (attrs as Record<string, unknown>)[key] = '[REDACTED]'
-      } else if (typeof value === 'string') {
-        (attrs as Record<string, unknown>)[key] = maskValue(value)
-      }
-    }
+    // ReadableSpan is immutable — no masking here. All redaction is in onStart.
     this.downstream.onEnd(span)
   }
 

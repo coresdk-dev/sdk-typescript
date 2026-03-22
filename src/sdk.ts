@@ -34,6 +34,23 @@ export interface PolicyResult {
   tenantId: string
 }
 
+export interface RateLimitDecision {
+  allowed: boolean
+  remaining: number
+  resetAt: number
+}
+
+export interface FlagDecision {
+  enabled: boolean
+  key: string
+}
+
+export interface LicenseInfo {
+  allowed: boolean
+  plan: string
+  features: string[]
+}
+
 function configFromEnv(): SDKConfig {
   // CORESDK_SIDECAR_ADDR is the canonical env var (matches Python, Go, Rust sidecar).
   // CORESDK_ENDPOINT is accepted as a deprecated alias for backwards compatibility.
@@ -63,6 +80,13 @@ function encodeVarint(n: number): Buffer {
   }
   bytes.push(n & 0x7f)
   return Buffer.from(bytes)
+}
+
+function encodeVarintField(fieldNum: number, value: number): Buffer {
+  if (!value) return Buffer.alloc(0)
+  const tag = encodeVarint((fieldNum << 3) | 0)
+  const val = encodeVarint(value)
+  return Buffer.concat([tag, val])
 }
 
 function encodeString(fieldNum: number, value: string): Buffer {
@@ -336,17 +360,179 @@ export class SDK {
   }
 
   async isEnabled(flagKey: string): Promise<boolean> {
-    if (!this.config.controlPlaneUrl) {
-      return true // no control plane configured, fail-open
-    }
+    const result = await this.evaluateFlag(flagKey)
+    return result.enabled
+  }
+
+  async checkRateLimit(key: string): Promise<RateLimitDecision> {
     try {
-      const res = await fetch(`${this.config.controlPlaneUrl}/api/v1/flags`)
-      if (!res.ok) throw new Error(`flags endpoint returned ${res.status}`)
-      const flags = (await res.json()) as Record<string, { enabled?: boolean }>
-      return flags[flagKey]?.enabled ?? false
+      // RateLimitCheckRequest: key(1), tenant_id(2)
+      const payload = Buffer.concat([
+        encodeString(1, key),
+        encodeString(2, this.config.tenantId),
+      ])
+
+      const responseBytes = await grpcCall(
+        this.config.endpoint,
+        '/coresdk.v1.RateLimitService/Check',
+        payload,
+        this.config,
+      )
+
+      // RateLimitCheckResponse: allowed(1 bool), remaining(2 uint), reset_at(3 uint)
+      const fields = decodeFields(responseBytes)
+      return {
+        allowed: fieldBool(fields, 1),
+        remaining: fieldUint(fields, 2),
+        resetAt: fieldUint(fields, 3),
+      }
     } catch (err) {
       if (this.config.failMode === 'closed') throw err
-      return true // fail-open
+      // eslint-disable-next-line no-console
+      console.warn('[coresdk] checkRateLimit fail-open:', err)
+      return { allowed: true, remaining: -1, resetAt: 0 }
+    }
+  }
+
+  async emitAuditEvent(
+    action: string,
+    userId: string,
+    outcome: string,
+    metadata?: Record<string, string>,
+  ): Promise<void> {
+    try {
+      // AuditEmitRequest: action(1), user_id(2), outcome(3), tenant_id(4), metadata_json(5)
+      const parts = [
+        encodeString(1, action),
+        encodeString(2, userId),
+        encodeString(3, outcome),
+        encodeString(4, this.config.tenantId),
+      ]
+      if (metadata) {
+        parts.push(encodeString(5, JSON.stringify(metadata)))
+      }
+      const payload = Buffer.concat(parts)
+
+      await grpcCall(
+        this.config.endpoint,
+        '/coresdk.v1.AuditService/Emit',
+        payload,
+        this.config,
+      )
+    } catch (err) {
+      if (this.config.failMode === 'closed') throw err
+      // eslint-disable-next-line no-console
+      console.warn('[coresdk] emitAuditEvent fail-open:', err)
+    }
+  }
+
+  async evaluateFlag(key: string, userId?: string): Promise<FlagDecision> {
+    try {
+      // FlagEvaluateRequest: key(1), user_id(2), tenant_id(3)
+      const parts = [
+        encodeString(1, key),
+        encodeString(3, this.config.tenantId),
+      ]
+      if (userId) {
+        parts.push(encodeString(2, userId))
+      }
+      const payload = Buffer.concat(parts)
+
+      const responseBytes = await grpcCall(
+        this.config.endpoint,
+        '/coresdk.v1.FlagService/Evaluate',
+        payload,
+        this.config,
+      )
+
+      // FlagEvaluateResponse: enabled(1 bool), key(2)
+      const fields = decodeFields(responseBytes)
+      return {
+        enabled: fieldBool(fields, 1),
+        key: fieldStr(fields, 2) || key,
+      }
+    } catch (err) {
+      if (this.config.failMode === 'closed') throw err
+      // eslint-disable-next-line no-console
+      console.warn('[coresdk] evaluateFlag fail-open:', err)
+      return { enabled: true, key }
+    }
+  }
+
+  async checkEntitlement(key: string): Promise<LicenseInfo> {
+    try {
+      // LicenseCheckRequest: key(1), tenant_id(2)
+      const payload = Buffer.concat([
+        encodeString(1, key),
+        encodeString(2, this.config.tenantId),
+      ])
+
+      const responseBytes = await grpcCall(
+        this.config.endpoint,
+        '/coresdk.v1.LicenseService/CheckEntitlement',
+        payload,
+        this.config,
+      )
+
+      // LicenseCheckResponse: allowed(1 bool), plan(2), features(3 repeated)
+      const fields = decodeFields(responseBytes)
+      return {
+        allowed: fieldBool(fields, 1),
+        plan: fieldStr(fields, 2),
+        features: fieldStrArray(fields, 3),
+      }
+    } catch (err) {
+      if (this.config.failMode === 'closed') throw err
+      // eslint-disable-next-line no-console
+      console.warn('[coresdk] checkEntitlement fail-open:', err)
+      return { allowed: true, plan: 'unknown', features: [] }
+    }
+  }
+
+  async revokeToken(token: string): Promise<void> {
+    try {
+      // RevokeTokenRequest: token(1), tenant_id(2)
+      const payload = Buffer.concat([
+        encodeString(1, token),
+        encodeString(2, this.config.tenantId),
+      ])
+
+      await grpcCall(
+        this.config.endpoint,
+        '/coresdk.v1.AuthService/RevokeToken',
+        payload,
+        this.config,
+      )
+    } catch (err) {
+      if (this.config.failMode === 'closed') throw err
+      // eslint-disable-next-line no-console
+      console.warn('[coresdk] revokeToken fail-open:', err)
+    }
+  }
+
+  async isRevoked(token: string): Promise<boolean> {
+    try {
+      // IsRevokedRequest: token(1), tenant_id(2)
+      const payload = Buffer.concat([
+        encodeString(1, token),
+        encodeString(2, this.config.tenantId),
+      ])
+
+      const responseBytes = await grpcCall(
+        this.config.endpoint,
+        '/coresdk.v1.AuthService/IsRevoked',
+        payload,
+        this.config,
+      )
+
+      // IsRevokedResponse: revoked(1 bool)
+      const fields = decodeFields(responseBytes)
+      return fieldBool(fields, 1)
+    } catch (err) {
+      if (this.config.failMode === 'closed') throw err
+      // eslint-disable-next-line no-console
+      console.warn('[coresdk] isRevoked fail-open:', err)
+      return false
     }
   }
 }

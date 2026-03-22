@@ -1,4 +1,4 @@
-import type { SDK, AuthDecision, Claims, PolicyResult } from './sdk.js'
+import type { SDK, AuthDecision, Claims, PolicyResult, RateLimitDecision, FlagDecision, LicenseInfo } from './sdk.js'
 import type { SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-node'
 
 // Inline ExportResult to avoid a hard dep on @opentelemetry/core
@@ -11,12 +11,19 @@ export interface MockSDKOptions {
   claims?: Partial<Claims>
 }
 
-export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEnabled'> {
+export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEnabled' | 'checkRateLimit' | 'emitAuditEvent' | 'evaluateFlag' | 'checkEntitlement' | 'revokeToken' | 'isRevoked'> {
   readonly authorizeCalls: { token: string; resource: string; action: string }[] = []
   readonly policyEvalCalls: { rule: string; input: Record<string, unknown> }[] = []
+  readonly rateLimitCalls: { key: string }[] = []
+  readonly auditCalls: { action: string; userId: string; outcome: string; metadata?: Record<string, string> }[] = []
+  readonly flagCalls: { key: string; userId?: string }[] = []
+  readonly entitlementCalls: { key: string }[] = []
+  readonly revokeTokenCalls: { token: string }[] = []
+  readonly isRevokedCalls: { token: string }[] = []
 
   private readonly defaultAllow: boolean
   private readonly defaultClaims: Claims
+  private readonly revokedTokens: Set<string> = new Set()
 
   constructor(opts: MockSDKOptions = {}) {
     this.defaultAllow = opts.defaultAllow ?? true
@@ -41,6 +48,41 @@ export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEn
 
   isEnabled(_flagKey: string): Promise<boolean> {
     return Promise.resolve(this.defaultAllow)
+  }
+
+  checkRateLimit(key: string): Promise<RateLimitDecision> {
+    this.rateLimitCalls.push({ key })
+    return Promise.resolve({ allowed: this.defaultAllow, remaining: 100, resetAt: Math.floor(Date.now() / 1000) + 60 })
+  }
+
+  emitAuditEvent(action: string, userId: string, outcome: string, metadata?: Record<string, string>): Promise<void> {
+    const entry: { action: string; userId: string; outcome: string; metadata?: Record<string, string> } = { action, userId, outcome }
+    if (metadata !== undefined) entry.metadata = metadata
+    this.auditCalls.push(entry)
+    return Promise.resolve()
+  }
+
+  evaluateFlag(key: string, userId?: string): Promise<FlagDecision> {
+    const entry: { key: string; userId?: string } = { key }
+    if (userId !== undefined) entry.userId = userId
+    this.flagCalls.push(entry)
+    return Promise.resolve({ enabled: this.defaultAllow, key })
+  }
+
+  checkEntitlement(key: string): Promise<LicenseInfo> {
+    this.entitlementCalls.push({ key })
+    return Promise.resolve({ allowed: this.defaultAllow, plan: 'enterprise', features: [key] })
+  }
+
+  revokeToken(token: string): Promise<void> {
+    this.revokeTokenCalls.push({ token })
+    this.revokedTokens.add(token)
+    return Promise.resolve()
+  }
+
+  isRevoked(token: string): Promise<boolean> {
+    this.isRevokedCalls.push({ token })
+    return Promise.resolve(this.revokedTokens.has(token))
   }
 
   static fromEnv(): MockSDK { return new MockSDK() }

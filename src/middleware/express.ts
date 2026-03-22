@@ -44,6 +44,14 @@ export function coreSDKMiddleware(opts: ExpressMiddlewareOptions): RequestHandle
           return
         }
         span.setStatus({ code: SpanStatusCode.OK })
+        // Inject tenant/user headers for downstream services
+        if (decision.claims.tenantId) {
+          res.setHeader('X-Tenant-ID', decision.claims.tenantId)
+        }
+        if (decision.claims.sub) {
+          res.setHeader('X-User-UUID', decision.claims.sub)
+        }
+
         await withClaims(decision.claims, () => new Promise<void>((resolve) => {
           (req as Request & { claims: unknown }).claims = decision.claims
           next()

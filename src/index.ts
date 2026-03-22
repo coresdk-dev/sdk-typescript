@@ -1,4 +1,4 @@
-export { SDK, isEdgeRuntime, type SDKConfig, type AuthDecision, type Claims, type PolicyResult } from './sdk.js'
+export { SDK, isEdgeRuntime, type SDKConfig, type AuthDecision, type Claims, type PolicyResult, type RateLimitDecision, type FlagDecision, type LicenseInfo } from './sdk.js'
 export {
   type ProblemDetail,
   CoreSDKError,
@@ -10,4 +10,4 @@ export {
 export { trace, setupOtel } from './tracing.js'
 export { withClaims, claimsFrom } from './context.js'
 export { PIIMaskingSpanProcessor, maskValue, isBlockedField, maskString, maskAttributes, PII_PATTERNS } from './masking/index.js'
-export { MockSDK, FakeSpanExporter, assertNoPii, assertNoPII } from './testing.js'
+export { MockSDK, type MockSDKOptions, FakeSpanExporter, assertNoPii, assertNoPII } from './testing.js'

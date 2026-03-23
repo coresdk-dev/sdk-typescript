@@ -28,9 +28,9 @@ describe('MockSDK — Core Behavior', () => {
     await sdk.authorize('tok1', { resource: '/a', action: 'GET' })
     await sdk.authorize('tok2', { resource: '/b', action: 'POST' })
     expect(sdk.authorizeCalls).toHaveLength(2)
-    expect(sdk.authorizeCalls[0].token).toBe('tok1')
-    expect(sdk.authorizeCalls[1].resource).toBe('/b')
-    expect(sdk.authorizeCalls[1].action).toBe('POST')
+    expect(sdk.authorizeCalls[0]?.token).toBe('tok1')
+    expect(sdk.authorizeCalls[1]?.resource).toBe('/b')
+    expect(sdk.authorizeCalls[1]?.action).toBe('POST')
   })
 
   it('authorize() returns custom claims from options', async () => {
@@ -58,8 +58,8 @@ describe('MockSDK — Core Behavior', () => {
     await sdk.evaluatePolicy('rule.one', { x: 1 })
     await sdk.evaluatePolicy('rule.two', { x: 2 })
     expect(sdk.policyEvalCalls).toHaveLength(2)
-    expect(sdk.policyEvalCalls[0].rule).toBe('rule.one')
-    expect(sdk.policyEvalCalls[1].input).toEqual({ x: 2 })
+    expect(sdk.policyEvalCalls[0]?.rule).toBe('rule.one')
+    expect(sdk.policyEvalCalls[1]?.input).toEqual({ x: 2 })
   })
 
   it('isEnabled() resolves with true by default', async () => {
@@ -250,7 +250,7 @@ describe('Real-World Usage Patterns', () => {
       await sdk.authorize(token, { resource, action })
     }
     expect(sdk.authorizeCalls).toHaveLength(3)
-    expect(sdk.authorizeCalls[2].resource).toBe('/orders/1')
+    expect(sdk.authorizeCalls[2]?.resource).toBe('/orders/1')
   })
 
   it('FakeSpanExporter + assertNoPii integration', () => {

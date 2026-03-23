@@ -41,7 +41,8 @@ export class PIIMaskingSpanProcessor implements SpanProcessor {
     // Mask attributes on start when the span is still mutable (ReadWriteSpan).
     // onEnd() receives a ReadableSpan with frozen attributes — mutating there
     // is undefined behaviour and silently fails in many OTel SDK versions.
-    const rwSpan = span as Span & { attributes?: Record<string, unknown> }
+    const rwSpan = span as Span & { attributes: Record<string, unknown> | undefined }
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (rwSpan.attributes) {
       for (const [key, value] of Object.entries(rwSpan.attributes)) {
         if (isBlockedField(key)) {

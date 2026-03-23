@@ -1,4 +1,9 @@
 import { trace as otelTrace, SpanStatusCode, type Span } from '@opentelemetry/api'
+import { NodeTracerProvider, BatchSpanProcessor } from '@opentelemetry/sdk-trace-node'
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc'
+import { Resource } from '@opentelemetry/resources'
+import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
+import { PIIMaskingSpanProcessor } from './masking/index.js'
 import { claimsFrom } from './context.js'
 
 export const tracer = otelTrace.getTracer('coresdk', '0.1.0')
@@ -33,13 +38,6 @@ export function setupOtel(serviceName: string): void {
   const existingProvider = otelTrace.getTracerProvider()
   // The NoopTracerProvider has no 'resource' property — detect real providers
   if ('resource' in existingProvider) return
-
-  const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node') as typeof import('@opentelemetry/sdk-trace-node')
-  const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc') as typeof import('@opentelemetry/exporter-trace-otlp-grpc')
-  const { Resource } = require('@opentelemetry/resources') as typeof import('@opentelemetry/resources')
-  const { ATTR_SERVICE_NAME } = require('@opentelemetry/semantic-conventions') as typeof import('@opentelemetry/semantic-conventions')
-  const { BatchSpanProcessor } = require('@opentelemetry/sdk-trace-node') as typeof import('@opentelemetry/sdk-trace-node')
-  const { PIIMaskingSpanProcessor } = require('./masking/index.js') as typeof import('./masking/index.js')
 
   const resource = new Resource({
     [ATTR_SERVICE_NAME]: serviceName,

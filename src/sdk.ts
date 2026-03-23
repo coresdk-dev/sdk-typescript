@@ -86,6 +86,7 @@ function encodeVarint(n: number): Buffer {
   return Buffer.from(bytes)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function encodeVarintField(fieldNum: number, value: number): Buffer {
   if (!value) return Buffer.alloc(0)
   const tag = encodeVarint((fieldNum << 3) | 0)
@@ -101,14 +102,13 @@ function encodeString(fieldNum: number, value: string): Buffer {
   return Buffer.concat([tag, len, encoded])
 }
 
-interface DecodedFields {
-  [fieldNum: number]: (Buffer | number)[]
-}
+type DecodedFields = Record<number, (Buffer | number)[]>
 
 function readVarint(data: Buffer, pos: number): [number, number] {
   let result = 0
   let shift = 0
   while (pos < data.length) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const b = data[pos++]!
     result |= (b & 0x7f) << shift
     if (!(b & 0x80)) break
@@ -202,7 +202,7 @@ function grpcCall(
   }
 
   return new Promise((resolve, reject) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
     const http2 = require('node:http2') as typeof import('node:http2')
 
     const url = authority.startsWith('http')
@@ -211,7 +211,7 @@ function grpcCall(
 
     let tlsOptions: Record<string, unknown> | undefined
     if (config?.tlsCertPath && config.tlsKeyPath) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
       const fs = require('node:fs') as typeof import('node:fs')
       tlsOptions = {
         cert: fs.readFileSync(config.tlsCertPath),
@@ -225,10 +225,10 @@ function grpcCall(
       : http2.connect(url)
     let settled = false
     const timer = setTimeout(() => {
-      if (!settled) { settled = true; session.close(); reject(new Error(`gRPC timeout after ${timeoutMs}ms`)) }
+      if (!settled) { settled = true; session.close(); reject(new Error(`gRPC timeout after ${String(timeoutMs)}ms`)) }
     }, timeoutMs)
 
-    session.on('error', (err) => {
+    session.on('error', (err: Error) => {
       if (!settled) { settled = true; clearTimeout(timer); reject(err) }
     })
 
@@ -266,7 +266,7 @@ function grpcCall(
 
       resolve(stripGrpcFrame(Buffer.concat(chunks)))
     })
-    req.on('error', (err) => {
+    req.on('error', (err: Error) => {
       if (!settled) { settled = true; clearTimeout(timer); session.close(); reject(err) }
     })
 
@@ -292,7 +292,6 @@ export class SDK {
 
   async authorize(token: string, options?: { action?: string; resource?: string; tenantId?: string }): Promise<AuthDecision> {
     const resource = options?.resource ?? ''
-    const action = options?.action ?? ''
     try {
       // ValidateTokenRequest: token(1), tenant(3 embedded), expectedAudience(4)
       // For simplicity, encode tenant_id as a string field and resource/action inline

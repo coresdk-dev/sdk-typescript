@@ -2,7 +2,7 @@
  * CoreSDK TypeScript SDK — Developer Simulation Test Suite
  * Simulates developers using the SDK for different project types.
  */
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { MockSDK, FakeSpanExporter, assertNoPii, assertNoPII } from '../testing.js'
 import { ProblemDetailError } from '../errors.js'
 
@@ -84,14 +84,17 @@ describe('MockSDK — Core Behavior', () => {
 describe('FakeSpanExporter', () => {
   it('captures exported spans', () => {
     const exporter = new FakeSpanExporter()
-    const fakeSpan = { attributes: { 'http.method': 'GET', 'tenant': 'acme' } } as any
-    exporter.export([fakeSpan], () => {})
+    const fakeSpan = { attributes: { 'http.method': 'GET', 'tenant': 'acme' } } as unknown as import('@opentelemetry/sdk-trace-node').ReadableSpan
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    exporter.export([fakeSpan], (_result) => { /* no-op */ })
     expect(exporter.spans).toHaveLength(1)
   })
 
   it('reset() clears captured spans', () => {
     const exporter = new FakeSpanExporter()
-    exporter.export([{ attributes: {} } as any], () => {})
+    const fakeSpan = { attributes: {} } as unknown as import('@opentelemetry/sdk-trace-node').ReadableSpan
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    exporter.export([fakeSpan], (_result) => { /* no-op */ })
     exporter.reset()
     expect(exporter.spans).toHaveLength(0)
   })
@@ -106,43 +109,43 @@ describe('FakeSpanExporter', () => {
 
 describe('assertNoPii — PII Detection', () => {
   it('clean attributes pass without throwing', () => {
-    expect(() =>
+    expect(() => {
       assertNoPii([{ attributes: { tenant: 'acme', method: 'GET', status: '200' } }])
-    ).not.toThrow()
+    }).not.toThrow()
   })
 
   it('email address in attribute throws', () => {
-    expect(() =>
+    expect(() => {
       assertNoPii([{ attributes: { user: 'alice@example.com' } }])
-    ).toThrow('PII')
+    }).toThrow('PII')
   })
 
   it('Bearer token in attribute throws', () => {
-    expect(() =>
+    expect(() => {
       assertNoPii([{ attributes: { auth: 'Bearer abc123def456' } }])
-    ).toThrow('PII')
+    }).toThrow('PII')
   })
 
   it('SSN pattern throws', () => {
-    expect(() =>
+    expect(() => {
       assertNoPii([{ attributes: { id: '123-45-6789' } }])
-    ).toThrow('PII')
+    }).toThrow('PII')
   })
 
   it('assertNoPII (uppercase alias) also works', () => {
-    expect(() =>
+    expect(() => {
       assertNoPII([{ attributes: { safe: 'no-pii-here' } }])
-    ).not.toThrow()
+    }).not.toThrow()
   })
 
   it('non-string attribute values are ignored', () => {
-    expect(() =>
+    expect(() => {
       assertNoPii([{ attributes: { count: 42, active: true } }])
-    ).not.toThrow()
+    }).not.toThrow()
   })
 
   it('empty spans array passes', () => {
-    expect(() => assertNoPii([])).not.toThrow()
+    expect(() => { assertNoPii([]) }).not.toThrow()
   })
 })
 
@@ -250,16 +253,19 @@ describe('Real-World Usage Patterns', () => {
     expect(sdk.authorizeCalls[2].resource).toBe('/orders/1')
   })
 
-  it('FakeSpanExporter + assertNoPii integration', async () => {
-    const sdk = new MockSDK()
+  it('FakeSpanExporter + assertNoPii integration', () => {
     const exporter = new FakeSpanExporter()
     // Simulate an auth span being recorded
-    exporter.export([{
+    const fakeSpan = {
       attributes: { 'coresdk.tenant_id': 'acme', 'coresdk.result': 'allowed' },
       name: 'coresdk.auth',
-    } as any], () => {})
+    } as unknown as import('@opentelemetry/sdk-trace-node').ReadableSpan
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    exporter.export([fakeSpan], (_result) => { /* no-op */ })
     // Assert no PII in captured spans
-    expect(() => assertNoPii(exporter.spans.map(s => ({ attributes: s.attributes as any })))).not.toThrow()
+    expect(() => {
+      assertNoPii(exporter.spans.map(s => ({ attributes: s.attributes as Record<string, unknown> })))
+    }).not.toThrow()
     expect(exporter.spans).toHaveLength(1)
   })
 })

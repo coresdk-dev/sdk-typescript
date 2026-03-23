@@ -8,6 +8,7 @@ describe('configFromEnv precedence', () => {
   beforeEach(() => {
     for (const key of envKeys) {
       saved[key] = process.env[key]
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete process.env[key]
     }
   })
@@ -17,6 +18,7 @@ describe('configFromEnv precedence', () => {
       if (saved[key] !== undefined) {
         process.env[key] = saved[key]
       } else {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete process.env[key]
       }
     }

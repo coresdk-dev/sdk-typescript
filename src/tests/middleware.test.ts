@@ -164,6 +164,7 @@ describe('coreSdkPlugin (Fastify)', () => {
     const sdkRef = sdk as unknown as import('../sdk.js').SDK
     await app.register(coreSdkPlugin, { sdk: sdkRef, required })
     // Routes must be in the same context — use after() to ensure plugin is loaded
+    // eslint-disable-next-line @typescript-eslint/require-await
     app.get('/api/test', async () => ({ ok: true }))
     await app.ready()
     return app

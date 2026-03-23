@@ -43,10 +43,10 @@ const plugin: FastifyPluginAsync<FastifyPluginOptions> = async (
         }
         // Inject tenant/user headers for downstream services
         if (decision.claims.tenantId) {
-          reply.header('X-Tenant-ID', decision.claims.tenantId)
+          void reply.header('X-Tenant-ID', decision.claims.tenantId)
         }
         if (decision.claims.sub) {
-          reply.header('X-User-UUID', decision.claims.sub)
+          void reply.header('X-User-UUID', decision.claims.sub)
         }
 
         (req as FastifyRequest & { claims: unknown }).claims = decision.claims

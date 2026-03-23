@@ -23,7 +23,7 @@ export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEn
 
   private readonly defaultAllow: boolean
   private readonly defaultClaims: Claims
-  private readonly revokedTokens: Set<string> = new Set()
+  private readonly revokedTokens = new Set<string>()
 
   constructor(opts: MockSDKOptions = {}) {
     this.defaultAllow = opts.defaultAllow ?? true
@@ -37,7 +37,9 @@ export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEn
   }
 
   authorize(token: string, options?: { action?: string; resource?: string; tenantId?: string }): Promise<AuthDecision> {
-    this.authorizeCalls.push({ token, resource: options?.resource ?? '', action: options?.action ?? '', tenantId: options?.tenantId })
+    const callEntry: { token: string; resource: string; action: string; tenantId?: string } = { token, resource: options?.resource ?? '', action: options?.action ?? '' }
+    if (options?.tenantId !== undefined) callEntry.tenantId = options.tenantId
+    this.authorizeCalls.push(callEntry)
     return Promise.resolve({ allowed: this.defaultAllow, claims: this.defaultClaims })
   }
 
@@ -46,6 +48,7 @@ export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEn
     return Promise.resolve({ result: this.defaultAllow, allowed: this.defaultAllow, tenantId: this.defaultClaims.tenantId })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isEnabled(_flagKey: string): Promise<boolean> {
     return Promise.resolve(this.defaultAllow)
   }

@@ -290,7 +290,9 @@ export class SDK {
     return new SDK(configFromEnv())
   }
 
-  async authorize(token: string, resource: string, action: string): Promise<AuthDecision> {
+  async authorize(token: string, options?: { action?: string; resource?: string; tenantId?: string }): Promise<AuthDecision> {
+    const resource = options?.resource ?? ''
+    const action = options?.action ?? ''
     try {
       // ValidateTokenRequest: token(1), tenant(3 embedded), expectedAudience(4)
       // For simplicity, encode tenant_id as a string field and resource/action inline

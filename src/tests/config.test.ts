@@ -38,7 +38,7 @@ describe('configFromEnv precedence', () => {
     expect(sdk).toBeDefined()
     // The best way to verify is to check that the SDK was created with the correct endpoint.
     // Since config is private, we verify via the error message when authorize fails.
-    const authPromise = sdk.authorize('tok', '/', 'GET')
+    const authPromise = sdk.authorize('tok', { resource: '/', action: 'GET' })
     // Should attempt connection to sidecar:9090, not endpoint:8080
     // In test env, both will fail with ECONNREFUSED — check the error includes the right host
     return authPromise.then(
@@ -52,7 +52,7 @@ describe('configFromEnv precedence', () => {
   it('CORESDK_ENDPOINT is used when CORESDK_SIDECAR_ADDR is not set', () => {
     process.env.CORESDK_ENDPOINT = 'endpoint:7070'
     const sdk = SDK.fromEnv()
-    const authPromise = sdk.authorize('tok', '/', 'GET')
+    const authPromise = sdk.authorize('tok', { resource: '/', action: 'GET' })
     return authPromise.then(
       (result) => {
         // fail-open returns allowed:true
@@ -65,7 +65,7 @@ describe('configFromEnv precedence', () => {
     const sdk = SDK.fromEnv()
     // No sidecar running — authorize will either fail-open (allowed:true with reason)
     // or succeed with a response from a running sidecar. Either way, no throw.
-    return sdk.authorize('tok', '/', 'GET').then((result) => {
+    return sdk.authorize('tok', { resource: '/', action: 'GET' }).then((result) => {
       expect(result).toBeDefined()
     })
   })

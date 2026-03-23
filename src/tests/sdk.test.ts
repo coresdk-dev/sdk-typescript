@@ -7,26 +7,26 @@ import { unauthorizedError, forbiddenError, CoreSDKError } from '../errors.js'
 describe('MockSDK', () => {
   it('allows by default', async () => {
     const sdk = new MockSDK()
-    const result = await sdk.authorize('token', '/api/users', 'GET')
+    const result = await sdk.authorize('token', { resource: '/api/users', action: 'GET' })
     expect(result.allowed).toBe(true)
   })
 
   it('can be configured to deny', async () => {
     const sdk = new MockSDK({ defaultAllow: false })
-    const result = await sdk.authorize('token', '/api/admin', 'DELETE')
+    const result = await sdk.authorize('token', { resource: '/api/admin', action: 'DELETE' })
     expect(result.allowed).toBe(false)
   })
 
   it('tracks authorize calls', async () => {
     const sdk = new MockSDK()
-    await sdk.authorize('tok123', '/api/users', 'GET')
+    await sdk.authorize('tok123', { resource: '/api/users', action: 'GET' })
     expect(sdk.authorizeCalls).toHaveLength(1)
     expect(sdk.authorizeCalls[0]?.token).toBe('tok123')
   })
 
   it('returns correct claims', async () => {
     const sdk = new MockSDK({ claims: { sub: 'user-42', tenantId: 'acme' } })
-    const result = await sdk.authorize('tok', '/api', 'GET')
+    const result = await sdk.authorize('tok', { resource: '/api', action: 'GET' })
     expect(result.claims.sub).toBe('user-42')
     expect(result.claims.tenantId).toBe('acme')
   })

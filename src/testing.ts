@@ -12,7 +12,7 @@ export interface MockSDKOptions {
 }
 
 export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEnabled' | 'checkRateLimit' | 'emitAuditEvent' | 'evaluateFlag' | 'checkEntitlement' | 'revokeToken' | 'isRevoked'> {
-  readonly authorizeCalls: { token: string; resource: string; action: string }[] = []
+  readonly authorizeCalls: { token: string; resource: string; action: string; tenantId?: string }[] = []
   readonly policyEvalCalls: { rule: string; input: Record<string, unknown> }[] = []
   readonly rateLimitCalls: { key: string }[] = []
   readonly auditCalls: { action: string; userId: string; outcome: string; metadata?: Record<string, string> }[] = []
@@ -36,8 +36,8 @@ export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEn
     }
   }
 
-  authorize(token: string, resource: string, action: string): Promise<AuthDecision> {
-    this.authorizeCalls.push({ token, resource, action })
+  authorize(token: string, options?: { action?: string; resource?: string; tenantId?: string }): Promise<AuthDecision> {
+    this.authorizeCalls.push({ token, resource: options?.resource ?? '', action: options?.action ?? '', tenantId: options?.tenantId })
     return Promise.resolve({ allowed: this.defaultAllow, claims: this.defaultClaims })
   }
 

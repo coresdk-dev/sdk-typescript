@@ -11,7 +11,7 @@ import { ProblemDetailError } from '../errors.js'
 describe('MockSDK — Core Behavior', () => {
   it('authorize() resolves with allowed=true by default', async () => {
     const sdk = new MockSDK()
-    const d = await sdk.authorize('valid-token', '/orders', 'GET')
+    const d = await sdk.authorize('valid-token', { resource: '/orders', action: 'GET' })
     expect(d.allowed).toBe(true)
     expect(d.claims).toBeDefined()
     expect(d.claims.sub).toBe('test-user')
@@ -19,14 +19,14 @@ describe('MockSDK — Core Behavior', () => {
 
   it('authorize() resolves with allowed=false when defaultAllow=false', async () => {
     const sdk = new MockSDK({ defaultAllow: false })
-    const d = await sdk.authorize('any-token', '/orders', 'GET')
+    const d = await sdk.authorize('any-token', { resource: '/orders', action: 'GET' })
     expect(d.allowed).toBe(false)
   })
 
   it('authorize() records calls for assertion', async () => {
     const sdk = new MockSDK()
-    await sdk.authorize('tok1', '/a', 'GET')
-    await sdk.authorize('tok2', '/b', 'POST')
+    await sdk.authorize('tok1', { resource: '/a', action: 'GET' })
+    await sdk.authorize('tok2', { resource: '/b', action: 'POST' })
     expect(sdk.authorizeCalls).toHaveLength(2)
     expect(sdk.authorizeCalls[0].token).toBe('tok1')
     expect(sdk.authorizeCalls[1].resource).toBe('/b')
@@ -35,7 +35,7 @@ describe('MockSDK — Core Behavior', () => {
 
   it('authorize() returns custom claims from options', async () => {
     const sdk = new MockSDK({ claims: { sub: 'admin-user', roles: ['admin'] } })
-    const d = await sdk.authorize('tok', '/admin', 'DELETE')
+    const d = await sdk.authorize('tok', { resource: '/admin', action: 'DELETE' })
     expect(d.claims.sub).toBe('admin-user')
     expect(d.claims.roles).toContain('admin')
   })
@@ -202,7 +202,7 @@ describe('Real-World Usage Patterns', () => {
     const tenants = ['acme', 'globex', 'initech']
     for (const tenant of tenants) {
       const sdk = new MockSDK({ claims: { tenantId: tenant } })
-      const d = await sdk.authorize(`token-${tenant}`, `/tenants/${tenant}/data`, 'GET')
+      const d = await sdk.authorize(`token-${tenant}`, { resource: `/tenants/${tenant}/data`, action: 'GET' })
       expect(d.allowed).toBe(true)
       expect(d.claims.tenantId).toBe(tenant)
     }
@@ -220,7 +220,7 @@ describe('Real-World Usage Patterns', () => {
 
   it('claims extracted from decision for request context', async () => {
     const sdk = new MockSDK({ claims: { sub: 'alice', roles: ['admin', 'user'] } })
-    const d = await sdk.authorize('token', '/api/admin', 'POST')
+    const d = await sdk.authorize('token', { resource: '/api/admin', action: 'POST' })
     const { sub, roles } = d.claims
     expect(sub).toBe('alice')
     expect(roles).toContain('admin')
@@ -228,7 +228,7 @@ describe('Real-World Usage Patterns', () => {
 
   it('deny-all SDK for testing unauthorized paths', async () => {
     const sdk = new MockSDK({ defaultAllow: false })
-    const d = await sdk.authorize('bad-token', '/protected', 'GET')
+    const d = await sdk.authorize('bad-token', { resource: '/protected', action: 'GET' })
     expect(d.allowed).toBe(false)
     const policy = await sdk.evaluatePolicy('data.deny', {})
     expect(policy.allowed).toBe(false)
@@ -244,7 +244,7 @@ describe('Real-World Usage Patterns', () => {
       ['tok3', '/orders/1', 'DELETE'],
     ]
     for (const [token, resource, action] of requests) {
-      await sdk.authorize(token, resource, action)
+      await sdk.authorize(token, { resource, action })
     }
     expect(sdk.authorizeCalls).toHaveLength(3)
     expect(sdk.authorizeCalls[2].resource).toBe('/orders/1')
@@ -273,7 +273,7 @@ describe('SDK Config — env var parsing', () => {
     // Here we confirm MockSDK.fromEnv() creates a working instance
     const sdk = MockSDK.fromEnv()
     expect(sdk).toBeInstanceOf(MockSDK)
-    const d = await sdk.authorize('tok', '/', 'GET')
+    const d = await sdk.authorize('tok', { resource: '/', action: 'GET' })
     expect(d).toBeDefined()
   })
 })

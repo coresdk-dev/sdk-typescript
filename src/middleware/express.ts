@@ -33,7 +33,7 @@ export function coreSDKMiddleware(opts: ExpressMiddlewareOptions): RequestHandle
 
     void tracer.startActiveSpan('coresdk.auth', async (span) => {
       try {
-        const decision = await opts.sdk.authorize(token, req.path, req.method)
+        const decision = await opts.sdk.authorize(token, { resource: req.path, action: req.method })
         if (!decision.allowed) {
           span.setStatus({ code: SpanStatusCode.ERROR })
           res.status(403).json({

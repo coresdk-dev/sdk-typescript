@@ -32,7 +32,7 @@ const plugin: FastifyPluginAsync<FastifyPluginOptions> = async (
 
     if (token) {
       try {
-        const decision = await opts.sdk.authorize(token, req.url, req.method)
+        const decision = await opts.sdk.authorize(token, { resource: req.url, action: req.method })
         if (!decision.allowed) {
           await reply.code(403).send({
             type: 'https://coresdk.io/errors/forbidden',

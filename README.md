@@ -20,7 +20,7 @@ import { SDK } from '@coresdk/sdk'
 const sdk = SDK.fromEnv()
 
 // Authorize a request
-const decision = await sdk.authorize(token, '/api/invoices', 'read')
+const decision = await sdk.authorize(token, { resource: '/api/invoices', action: 'read' })
 if (!decision.allowed) throw forbiddenError()
 ```
 
@@ -75,3 +75,84 @@ docker run --rm \
 ```
 
 See the [Getting Started guide](GETTING-STARTED.md) for the full setup walkthrough.
+
+## API Reference
+
+### Authorization
+
+```typescript
+// Validate token only
+const decision = await sdk.authorize('Bearer eyJ...')
+
+// Validate + check action/resource
+const decision = await sdk.authorize('Bearer eyJ...', { action: 'read', resource: '/api/orders' })
+// decision.allowed: boolean
+// decision.claims.sub, .tenantId, .roles, .exp
+// decision.reason: string (populated on denial)
+```
+
+### Policy Evaluation
+
+```typescript
+const result = await sdk.evaluatePolicy('authz.allow', {
+  action: 'read',
+  roles: ['viewer'],
+})
+// result.allowed: boolean
+```
+
+### Feature Flags
+
+```typescript
+const flag = await sdk.evaluateFlag('new-checkout-flow', { userId: 'u123' })
+// flag.enabled: boolean
+// flag.variant: string
+```
+
+### Rate Limiting
+
+```typescript
+const rl = await sdk.checkRateLimit('user:u123')
+if (!rl.allowed) {
+  res.status(429).set('Retry-After', String(rl.retryAfterMs / 1000)).send()
+}
+```
+
+### Audit Events
+
+```typescript
+await sdk.emitAuditEvent({
+  action: 'order.placed',
+  userId: 'u123',
+  outcome: 'success',
+  resourceType: 'order',
+  resourceId: 'ord_456',
+})
+```
+
+### Testing with MockSDK
+
+```typescript
+import { MockSDK } from '@coresdk/sdk'
+
+const sdk = new MockSDK()
+// All methods return sensible defaults (allowed: true, etc.)
+// Override per test:
+sdk.authorize = jest.fn().mockResolvedValue({ allowed: false, reason: 'denied', claims: {} })
+```
+
+### Framework Middleware
+
+```typescript
+// Express
+import { createCoreSDKMiddleware } from '@coresdk/sdk/middleware/express'
+app.use(createCoreSDKMiddleware(sdk))
+
+// Fastify
+import { coreSDKFastifyPlugin } from '@coresdk/sdk/middleware/fastify'
+await fastify.register(coreSDKFastifyPlugin, { sdk })
+
+// Next.js Edge
+import { withCoreSDKAuth } from '@coresdk/sdk/middleware/next'
+export default withCoreSDKAuth(handler, { sdk })
+```

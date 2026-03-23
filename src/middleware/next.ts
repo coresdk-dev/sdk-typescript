@@ -64,7 +64,7 @@ export async function coreSdkNextMiddleware(
       console.warn('[coresdk] Edge Runtime detected — gRPC transport unavailable, passing through. Use control plane REST API for edge auth.')
       return NextResponse.next()
     }
-    const decision = await opts.sdk.authorize(token, path, req.method)
+    const decision = await opts.sdk.authorize(token, { resource: path, action: req.method })
     if (!decision.allowed) {
       return NextResponse.json(
         { type: 'https://coresdk.io/errors/forbidden', title: 'Forbidden', status: 403 },

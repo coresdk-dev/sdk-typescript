@@ -2,6 +2,8 @@
 
 Universal SDK client for CoreSDK — auth, policy, OTel, multi-tenancy.
 
+**New here?** The [Getting Started guide](GETTING-STARTED.md) takes you from zero to a working sidecar + SDK call in 15 minutes, with a **why** explanation at every step.
+
 ## Install
 
 ```bash

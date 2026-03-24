@@ -1,4 +1,4 @@
-import type { SDK, AuthDecision, Claims, PolicyResult, RateLimitDecision, FlagDecision, LicenseInfo } from './sdk.js'
+import type { SDK, AuthDecision, Claims, PolicyResult, RateLimitDecision, FlagDecision, LicenseInfo, ExplainResult, AgentToken, EgressDecision } from './sdk.js'
 import type { SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-node'
 
 // Inline ExportResult to avoid a hard dep on @opentelemetry/core
@@ -11,7 +11,7 @@ export interface MockSDKOptions {
   claims?: Partial<Claims>
 }
 
-export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEnabled' | 'checkRateLimit' | 'emitAuditEvent' | 'evaluateFlag' | 'checkEntitlement' | 'revokeToken' | 'isRevoked'> {
+export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEnabled' | 'checkRateLimit' | 'emitAuditEvent' | 'evaluateFlag' | 'checkEntitlement' | 'revokeToken' | 'isRevoked' | 'explainAuthorize' | 'mintAgentToken' | 'checkEgress'> {
   readonly authorizeCalls: { token: string; resource: string; action: string; tenantId?: string }[] = []
   readonly policyEvalCalls: { rule: string; input: Record<string, unknown> }[] = []
   readonly rateLimitCalls: { key: string }[] = []
@@ -86,6 +86,21 @@ export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEn
   isRevoked(token: string): Promise<boolean> {
     this.isRevokedCalls.push({ token })
     return Promise.resolve(this.revokedTokens.has(token))
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  explainAuthorize(_token: string, _path?: string, _action?: string): Promise<ExplainResult> {
+    return Promise.resolve({ requestId: 'mock', outcome: 'allowed', auth: {}, policy: {}, rateLimit: {}, masking: {}, latencyMs: 0 })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  mintAgentToken(_parentToken: string, targetService: string, _scopes: string[], _ttlSeconds?: number): Promise<AgentToken> {
+    return Promise.resolve({ token: 'mock-agent-token', expiresInSeconds: 300, agentChain: [targetService] })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  checkEgress(_url: string): Promise<EgressDecision> {
+    return Promise.resolve({ allowed: true, reason: '' })
   }
 
   static fromEnv(): MockSDK { return new MockSDK() }

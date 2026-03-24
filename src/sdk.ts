@@ -53,6 +53,27 @@ export interface LicenseInfo {
   features: string[]
 }
 
+export type ExplainResult = {
+  requestId: string;
+  outcome: 'allowed' | 'denied';
+  auth: Record<string, unknown>;
+  policy: Record<string, unknown>;
+  rateLimit: Record<string, unknown>;
+  masking: Record<string, unknown>;
+  latencyMs: number;
+};
+
+export type AgentToken = {
+  token: string;
+  expiresInSeconds: number;
+  agentChain: string[];
+};
+
+export type EgressDecision = {
+  allowed: boolean;
+  reason: string;
+};
+
 function configFromEnv(): SDKConfig {
   // CORESDK_SIDECAR_ADDR is the canonical env var (matches Python, Go, Rust sidecar).
   // CORESDK_ENDPOINT is accepted as a deprecated alias for backwards compatibility.
@@ -542,6 +563,91 @@ export class SDK {
       // eslint-disable-next-line no-console
       console.warn('[coresdk] isRevoked fail-open:', err)
       return false
+    }
+  }
+
+  async explainAuthorize(token: string, path = '', action = ''): Promise<ExplainResult> {
+    try {
+      const decision = await this.authorize(token, { resource: path, action })
+      return {
+        requestId: '',
+        outcome: decision.allowed ? 'allowed' : 'denied',
+        auth: { allowed: decision.allowed, subject: decision.claims?.sub ?? '' },
+        policy: {},
+        rateLimit: {},
+        masking: {},
+        latencyMs: 0,
+      }
+    } catch (e) {
+      return { requestId: '', outcome: 'denied', auth: { error: String(e) }, policy: {}, rateLimit: {}, masking: {}, latencyMs: 0 }
+    }
+  }
+
+  async mintAgentToken(
+    parentToken: string,
+    targetService: string,
+    scopes: string[],
+    ttlSeconds = 300,
+  ): Promise<AgentToken> {
+    try {
+      // MintAgentTokenRequest: parent_token(1), target_service(2), scopes(3 repeated), ttl_seconds(4), tenant_id(5)
+      const parts: Buffer[] = [
+        encodeString(1, parentToken),
+        encodeString(2, targetService),
+        ...scopes.map(s => encodeString(3, s)),
+        encodeVarintField(4, Math.min(ttlSeconds, 300)),
+        encodeString(5, this.config.tenantId),
+      ]
+      const payload = Buffer.concat(parts)
+
+      const responseBytes = await grpcCall(
+        this.config.endpoint,
+        '/coresdk.v1.AuthService/MintAgentToken',
+        payload,
+        this.config,
+      )
+
+      // MintAgentTokenResponse: token(1), expires_in_seconds(2), agent_chain(3)
+      const fields = decodeFields(responseBytes)
+      const token = fieldStr(fields, 1)
+      const expiresInSeconds = fieldUint(fields, 2) || 300
+      const chainJson = fieldStr(fields, 3) || '[]'
+      let agentChain: string[] = []
+      try { agentChain = JSON.parse(chainJson) as string[] } catch { /* ignore */ }
+      return { token, expiresInSeconds, agentChain }
+    } catch (err) {
+      if (this.config.failMode === 'closed') throw err
+      // eslint-disable-next-line no-console
+      console.warn('[coresdk] mintAgentToken fail-open:', err)
+      return { token: '', expiresInSeconds: 0, agentChain: [] }
+    }
+  }
+
+  async checkEgress(url: string): Promise<EgressDecision> {
+    try {
+      // CheckEgressRequest: url(1), tenant_id(2), service_name(3)
+      const payload = Buffer.concat([
+        encodeString(1, url),
+        encodeString(2, this.config.tenantId),
+        encodeString(3, this.config.serviceName),
+      ])
+
+      const responseBytes = await grpcCall(
+        this.config.endpoint,
+        '/coresdk.v1.EgressService/CheckEgress',
+        payload,
+        this.config,
+      )
+
+      // CheckEgressResponse: allowed(1 bool), reason(2)
+      const fields = decodeFields(responseBytes)
+      return {
+        allowed: fieldBool(fields, 1),
+        reason: fieldStr(fields, 2),
+      }
+    } catch {
+      // Fail-open: sidecar unreachable
+      return { allowed: true, reason: 'sidecar unreachable (fail-open)' }
     }
   }
 }

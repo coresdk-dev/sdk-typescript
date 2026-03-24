@@ -572,7 +572,7 @@ export class SDK {
       return {
         requestId: '',
         outcome: decision.allowed ? 'allowed' : 'denied',
-        auth: { allowed: decision.allowed, subject: decision.claims ? decision.claims.sub : '' },
+        auth: { allowed: decision.allowed, subject: decision.claims.sub },
         policy: {},
         rateLimit: {},
         masking: {},

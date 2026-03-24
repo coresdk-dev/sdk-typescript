@@ -17,12 +17,12 @@ import type { SDK } from './sdk.js';
  */
 export function createCoreFetch(sdk: SDK): (input: string | URL | Request, init?: RequestInit) => Promise<Response> {
   return async function coreFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const decision = await sdk.checkEgress(url);
     if (!decision.allowed) {
       throw new Error(`CoreSDK SSRF firewall blocked request to ${url}: ${decision.reason}`);
     }
-    return fetch(input as Parameters<typeof fetch>[0], init);
+    return fetch(input, init);
   };
 }
 
@@ -32,7 +32,7 @@ export function createCoreFetch(sdk: SDK): (input: string | URL | Request, init?
  */
 export function createCoreAxios(sdk: SDK): unknown {
   // Dynamic import to avoid hard dep on axios
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   const axios = require('axios') as { create: () => { interceptors: { request: { use: (fn: (cfg: Record<string, unknown>) => Promise<Record<string, unknown>>) => void } }; [k: string]: unknown } };
   const instance = axios.create();
   instance.interceptors.request.use(async (config: Record<string, unknown>) => {

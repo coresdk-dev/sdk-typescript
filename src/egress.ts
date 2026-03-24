@@ -30,14 +30,13 @@ export function createCoreFetch(sdk: SDK): (input: string | URL | Request, init?
  * Creates an axios interceptor that blocks requests to disallowed URLs.
  * Usage: const axiosInstance = createCoreAxios(sdk);
  */
-export function createCoreAxios(sdk: SDK) {
+export function createCoreAxios(sdk: SDK): unknown {
   // Dynamic import to avoid hard dep on axios
-  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-  const axios = require('axios');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const axios = require('axios') as { create: () => { interceptors: { request: { use: (fn: (cfg: Record<string, unknown>) => Promise<Record<string, unknown>>) => void } }; [k: string]: unknown } };
   const instance = axios.create();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  instance.interceptors.request.use(async (config: any) => {
-    const url = config.url || '';
+  instance.interceptors.request.use(async (config: Record<string, unknown>) => {
+    const url = typeof config.url === 'string' ? config.url : '';
     const decision = await sdk.checkEgress(url);
     if (!decision.allowed) {
       throw new Error(`CoreSDK egress blocked: ${decision.reason}`);

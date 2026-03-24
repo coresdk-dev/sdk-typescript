@@ -53,7 +53,7 @@ export interface LicenseInfo {
   features: string[]
 }
 
-export type ExplainResult = {
+export interface ExplainResult {
   requestId: string;
   outcome: 'allowed' | 'denied';
   auth: Record<string, unknown>;
@@ -61,18 +61,18 @@ export type ExplainResult = {
   rateLimit: Record<string, unknown>;
   masking: Record<string, unknown>;
   latencyMs: number;
-};
+}
 
-export type AgentToken = {
+export interface AgentToken {
   token: string;
   expiresInSeconds: number;
   agentChain: string[];
-};
+}
 
-export type EgressDecision = {
+export interface EgressDecision {
   allowed: boolean;
   reason: string;
-};
+}
 
 function configFromEnv(): SDKConfig {
   // CORESDK_SIDECAR_ADDR is the canonical env var (matches Python, Go, Rust sidecar).
@@ -572,7 +572,7 @@ export class SDK {
       return {
         requestId: '',
         outcome: decision.allowed ? 'allowed' : 'denied',
-        auth: { allowed: decision.allowed, subject: decision.claims?.sub ?? '' },
+        auth: { allowed: decision.allowed, subject: decision.claims ? decision.claims.sub : '' },
         policy: {},
         rateLimit: {},
         masking: {},

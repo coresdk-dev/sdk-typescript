@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AuthorizeRequest, AuthorizeResponse, GetJwksRequest, GetJwksResponse, IsRevokedRequest, IsRevokedResponse, RevokeTokenRequest, RevokeTokenResponse, ValidateSamlAssertionRequest, ValidateSamlAssertionResponse, ValidateTokenRequest, ValidateTokenResponse } from "./auth_pb.js";
+import { AuthorizeRequest, AuthorizeResponse, GetJwksRequest, GetJwksResponse, IsRevokedRequest, IsRevokedResponse, RefreshTokenRequest, RefreshTokenResponse, RevokeTokenRequest, RevokeTokenResponse, ValidateSamlAssertionRequest, ValidateSamlAssertionResponse, ValidateTokenRequest, ValidateTokenResponse } from "./auth_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -64,6 +64,18 @@ export const AuthService = {
       name: "ValidateSAMLAssertion",
       I: ValidateSamlAssertionRequest,
       O: ValidateSamlAssertionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Exchange a valid refresh JWT (typ="refresh") for a new access JWT + new refresh JWT.
+     * Sidecar validates the refresh token locally (same HMAC key), then issues new tokens.
+     *
+     * @generated from rpc coresdk.v1.AuthService.RefreshToken
+     */
+    refreshToken: {
+      name: "RefreshToken",
+      I: RefreshTokenRequest,
+      O: RefreshTokenResponse,
       kind: MethodKind.Unary,
     },
   }

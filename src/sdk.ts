@@ -650,4 +650,85 @@ export class SDK {
       return { allowed: true, reason: 'sidecar unreachable (fail-open)' }
     }
   }
+
+  // ── JobService ─────────────────────────────────────────────────────────
+
+  async submitJob(opts: import('./jobs.js').SubmitJobOptions): Promise<import('./jobs.js').Job> {
+    const jobs = await import('./jobs.js')
+    const payload = jobs.encodeSubmitJobRequest(opts, this.config.tenantId)
+    const resp = await grpcCall(this.config.endpoint, '/coresdk.v1.JobService/SubmitJob', payload, this.config, 30_000)
+    return jobs.decodeJob(resp)
+  }
+
+  async getJob(jobId: string): Promise<import('./jobs.js').Job> {
+    const jobs = await import('./jobs.js')
+    const payload = jobs.encodeGetJob(jobId, this.config.tenantId)
+    const resp = await grpcCall(this.config.endpoint, '/coresdk.v1.JobService/GetJob', payload, this.config)
+    return jobs.decodeJob(resp)
+  }
+
+  async cancelJob(jobId: string, reason = ''): Promise<import('./jobs.js').Job> {
+    const jobs = await import('./jobs.js')
+    const payload = jobs.encodeCancel(jobId, reason, this.config.tenantId)
+    const resp = await grpcCall(this.config.endpoint, '/coresdk.v1.JobService/CancelJob', payload, this.config)
+    return jobs.decodeJob(resp)
+  }
+
+  async listJobs(state = '', limit = 100): Promise<import('./jobs.js').Job[]> {
+    const jobs = await import('./jobs.js')
+    const payload = jobs.encodeList(this.config.tenantId, state, limit)
+    const resp = await grpcCall(this.config.endpoint, '/coresdk.v1.JobService/ListJobs', payload, this.config)
+    return jobs.decodeJobList(resp)
+  }
+
+  async getJobOutput(jobId: string, presignTtlSeconds = 900): Promise<import('./jobs.js').JobOutput> {
+    const jobs = await import('./jobs.js')
+    const payload = jobs.encodeOutput(jobId, presignTtlSeconds, this.config.tenantId)
+    const resp = await grpcCall(this.config.endpoint, '/coresdk.v1.JobService/GetJobOutput', payload, this.config)
+    return jobs.decodeJobOutput(resp)
+  }
+
+  /**
+   * Async generator of JobEvents. Closes when the job reaches a terminal
+   * state; throws on transport errors.
+   */
+  async *watchJob(jobId: string): AsyncGenerator<import('./jobs.js').JobEvent> {
+    const jobs = await import('./jobs.js')
+    const payload = jobs.encodeWatch(jobId, this.config.tenantId)
+    for await (const body of jobs.grpcServerStream(
+      this.config.endpoint,
+      '/coresdk.v1.JobService/WatchJob',
+      payload,
+      this.config,
+    )) {
+      const ev = jobs.decodeJobEvent(body)
+      ev.jobId = jobId
+      yield ev
+      if (ev.kind === 'succeeded' || ev.kind === 'failed' || ev.kind === 'cancelled') return
+    }
+  }
+
+  /** Async generator of LogLines tailed from the running container. */
+  async *streamJobLogs(
+    jobId: string,
+    options?: { follow?: boolean; tailLines?: number },
+  ): AsyncGenerator<import('./jobs.js').LogLine> {
+    const jobs = await import('./jobs.js')
+    const payload = jobs.encodeLogs(
+      jobId,
+      options?.follow ?? true,
+      options?.tailLines ?? 0,
+      this.config.tenantId,
+    )
+    for await (const body of jobs.grpcServerStream(
+      this.config.endpoint,
+      '/coresdk.v1.JobService/GetJobLogs',
+      payload,
+      this.config,
+    )) {
+      const line = jobs.decodeLogLine(body)
+      line.jobId = jobId
+      yield line
+    }
+  }
 }

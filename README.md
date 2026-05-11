@@ -156,3 +156,42 @@ await fastify.register(coreSDKFastifyPlugin, { sdk })
 import { withCoreSDKAuth } from '@coresdk/sdk/middleware/next'
 export default withCoreSDKAuth(handler, { sdk })
 ```
+
+## Jobs (containerised long-running work)
+
+`SDK` exposes the sidecar's `JobService` for async K8s-backed container
+workloads with typed lifecycle events, blob-store I/O, and RBAC-gated
+secret injection.
+
+```typescript
+import { SDK } from '@coresdk/sdk'
+const sdk = SDK.fromEnv()
+
+const job = await sdk.submitJob({
+  kind: 'claude-cli',
+  image: 'ghcr.io/zysec/cpod-claude-cli:latest',
+  command: ['claude'],
+  inlineFiles: { 'prompt.md': new TextEncoder().encode('hi') },
+  secretBundles: ['anthropic-prod'],
+  userId: 'alice@example.com',
+  timeoutSeconds: 600,
+})
+
+for await (const ev of sdk.watchJob(job.jobId)) {
+  if (ev.kind === 'progress') console.log(ev.stage, ev.detail)
+  if (ev.kind === 'succeeded') {
+    const out = await sdk.getJobOutput(job.jobId, 900)
+    for (const f of out.files) console.log(f.key, f.presignedUrl)
+  }
+  if (ev.kind === 'failed') throw new Error(ev.error)
+}
+```
+
+`watchJob` and `streamJobLogs` are async generators driven by a generic
+`grpcServerStream` helper over `node:http2`. Public types: `Job`,
+`JobEvent`, `JobEventKind`, `JobOutput`, `JobState`, `LogLine`,
+`OutputFile`, `SecretRef`, `SubmitJobOptions`.
+
+> **Edge Runtime:** the JobService methods require `node:http2` and are
+> not available under Vercel/Cloudflare Edge. Use the gRPC SDKs from a
+> Node.js server, or call the control-plane REST surface directly.

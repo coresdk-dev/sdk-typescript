@@ -1,4 +1,4 @@
-import type { SDK, AuthDecision, Claims, PolicyResult, RateLimitDecision, FlagDecision, LicenseInfo, ExplainResult, AgentToken, EgressDecision } from './sdk.js'
+import type { SDK, AuthDecision, AuthorizeOptions, Claims, PolicyResult, RateLimitDecision, FlagDecision, LicenseInfo, ExplainResult, AgentToken, EgressDecision } from './sdk.js'
 import type { SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-node'
 
 // Inline ExportResult to avoid a hard dep on @opentelemetry/core
@@ -12,7 +12,7 @@ export interface MockSDKOptions {
 }
 
 export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEnabled' | 'checkRateLimit' | 'emitAuditEvent' | 'evaluateFlag' | 'checkEntitlement' | 'revokeToken' | 'isRevoked' | 'explainAuthorize' | 'mintAgentToken' | 'checkEgress'> {
-  readonly authorizeCalls: { token: string; resource: string; action: string; tenantId?: string }[] = []
+  readonly authorizeCalls: { token: string; resource: string; action: string; tenantId?: string; requiredScope?: string }[] = []
   readonly policyEvalCalls: { rule: string; input: Record<string, unknown> }[] = []
   readonly rateLimitCalls: { key: string }[] = []
   readonly auditCalls: { action: string; userId: string; outcome: string; metadata?: Record<string, string> }[] = []
@@ -36,9 +36,29 @@ export class MockSDK implements Pick<SDK, 'authorize' | 'evaluatePolicy' | 'isEn
     }
   }
 
-  authorize(token: string, options?: { action?: string; resource?: string; tenantId?: string }): Promise<AuthDecision> {
-    const callEntry: { token: string; resource: string; action: string; tenantId?: string } = { token, resource: options?.resource ?? '', action: options?.action ?? '' }
-    if (options?.tenantId !== undefined) callEntry.tenantId = options.tenantId
+  authorize(token: string, options?: AuthorizeOptions): Promise<AuthDecision>
+  authorize(token: string, action: string, resource: string, options?: AuthorizeOptions): Promise<AuthDecision>
+  authorize(
+    token: string,
+    arg2?: string | AuthorizeOptions,
+    arg3?: string,
+    arg4?: AuthorizeOptions,
+  ): Promise<AuthDecision> {
+    let options: AuthorizeOptions
+    if (typeof arg2 === 'string') {
+      options = { ...(arg4 ?? {}) }
+      options.action = arg2
+      if (arg3 !== undefined) options.resource = arg3
+    } else {
+      options = { ...(arg2 ?? {}) }
+    }
+    const callEntry: { token: string; resource: string; action: string; tenantId?: string; requiredScope?: string } = {
+      token,
+      resource: options.resource ?? '',
+      action: options.action ?? '',
+    }
+    if (options.tenantId !== undefined) callEntry.tenantId = options.tenantId
+    if (options.requiredScope !== undefined) callEntry.requiredScope = options.requiredScope
     this.authorizeCalls.push(callEntry)
     return Promise.resolve({ allowed: this.defaultAllow, claims: this.defaultClaims })
   }

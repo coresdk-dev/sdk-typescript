@@ -56,6 +56,17 @@ export interface AuthorizeRequest {
   tenant?: TenantContext;
   metadata?: RequestMetadata;
   context?: Record<string, string>;
+  /**
+   * Raw bearer JWT (field 7). When set, takes precedence over `subject` and
+   * the sidecar will validate the token before authorizing.
+   */
+  token?: string;
+  /**
+   * OAuth 2.0 scope requirement (RFC 6749 §3.3) — field 8. Space-separated
+   * list of scope names; multiple values mean "all of these" (logical AND).
+   * A granted `jobs.*` satisfies a required `jobs.write`.
+   */
+  requiredScope?: string;
 }
 
 /** Mirrors coresdk.v1.AuthorizeResponse. */

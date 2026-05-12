@@ -30,6 +30,24 @@ export interface AuthDecision {
   reason?: string
 }
 
+/**
+ * Options accepted by {@link SDK.authorize}.
+ *
+ * Backwards-compatible additions over the original `{ action, resource, tenantId }`
+ * shape. Set `requiredScope` to enforce an OAuth 2.0 scope filter
+ * (RFC 6749 §3.3) — space-separated, "all-of" semantics. When `requiredScope`
+ * is provided the SDK calls `AuthService/Authorize` so the sidecar performs
+ * the combined validate+authorize+scope check; otherwise it preserves the
+ * legacy `AuthService/ValidateToken` path.
+ */
+export interface AuthorizeOptions {
+  action?: string
+  resource?: string
+  tenantId?: string
+  /** Space-separated OAuth 2.0 scopes; all required (logical AND). */
+  requiredScope?: string
+}
+
 export interface PolicyResult {
   result: unknown
   allowed: boolean
@@ -311,11 +329,66 @@ export class SDK {
     return new SDK(configFromEnv())
   }
 
-  async authorize(token: string, options?: { action?: string; resource?: string; tenantId?: string }): Promise<AuthDecision> {
-    const resource = options?.resource ?? ''
+  authorize(token: string, options?: AuthorizeOptions): Promise<AuthDecision>
+  authorize(
+    token: string,
+    action: string,
+    resource: string,
+    options?: AuthorizeOptions,
+  ): Promise<AuthDecision>
+  async authorize(
+    token: string,
+    arg2?: string | AuthorizeOptions,
+    arg3?: string,
+    arg4?: AuthorizeOptions,
+  ): Promise<AuthDecision> {
+    // Normalise the two overload shapes into a single options object.
+    let options: AuthorizeOptions
+    if (typeof arg2 === 'string') {
+      options = { ...(arg4 ?? {}) }
+      options.action = arg2
+      if (arg3 !== undefined) options.resource = arg3
+    } else {
+      options = { ...(arg2 ?? {}) }
+    }
+
+    const action = options.action ?? ''
+    const resource = options.resource ?? ''
+    const requiredScope = options.requiredScope ?? ''
+
     try {
-      // ValidateTokenRequest: token(1), tenant(3 embedded), expectedAudience(4)
-      // For simplicity, encode tenant_id as a string field and resource/action inline
+      if (requiredScope) {
+        // AuthorizeRequest: subject(1), action(2), resource(3), token(7), required_scope(8)
+        const payload = Buffer.concat([
+          encodeString(2, action),
+          encodeString(3, resource),
+          encodeString(7, token),
+          encodeString(8, requiredScope),
+        ])
+
+        const responseBytes = await grpcCall(
+          this.config.endpoint,
+          '/coresdk.v1.AuthService/Authorize',
+          payload,
+          this.config,
+        )
+
+        // AuthorizeResponse: allowed(1 bool), reason(2 string), subject(3), roles(4 repeated), tenant_id(5)
+        const fields = decodeFields(responseBytes)
+        const allowed = fieldBool(fields, 1)
+        const reason = fieldStr(fields, 2)
+        const subject = fieldStr(fields, 3) || 'unknown'
+        const roles = fieldStrArray(fields, 4)
+        const tenantId = fieldStr(fields, 5) || this.config.tenantId
+        const decision: AuthDecision = {
+          allowed,
+          claims: { sub: subject, tenantId, roles, exp: 0 },
+        }
+        if (reason) decision.reason = reason
+        return decision
+      }
+
+      // ValidateTokenRequest: token(1), expectedAudience(4)
       const payload = Buffer.concat([
         encodeString(1, token),
         encodeString(4, resource),

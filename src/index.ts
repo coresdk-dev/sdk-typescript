@@ -1,4 +1,4 @@
-export { SDK, isEdgeRuntime, type SDKConfig, type AuthDecision, type Claims, type PolicyResult, type RateLimitDecision, type FlagDecision, type LicenseInfo, type ExplainResult, type AgentToken, type EgressDecision } from './sdk.js'
+export { SDK, isEdgeRuntime, type SDKConfig, type AuthDecision, type AuthorizeOptions, type Claims, type PolicyResult, type RateLimitDecision, type FlagDecision, type LicenseInfo, type ExplainResult, type AgentToken, type EgressDecision } from './sdk.js'
 export { createCoreFetch } from './egress.js'
 export {
   type ProblemDetail,

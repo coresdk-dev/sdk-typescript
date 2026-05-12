@@ -89,6 +89,22 @@ const decision = await sdk.authorize('Bearer eyJ...', { action: 'read', resource
 // decision.allowed: boolean
 // decision.claims.sub, .tenantId, .roles, .exp
 // decision.reason: string (populated on denial)
+
+// Enforce an OAuth 2.0 scope filter (RFC 6749 §3.3). Space-separated;
+// multiple values mean "all of these" (logical AND). A granted `jobs.*`
+// satisfies a required `jobs.write`. When `requiredScope` is set the SDK
+// routes the call through `AuthService/Authorize` so the sidecar performs
+// the combined validate + authorize + scope check in one round trip.
+const decision = await sdk.authorize('Bearer eyJ...', {
+  action: 'write',
+  resource: '/jobs',
+  requiredScope: 'jobs.write',
+})
+
+// Positional overload (matches Python / Go ergonomics):
+await sdk.authorize('Bearer eyJ...', 'read', '/orders', {
+  requiredScope: 'jobs.read files.read',
+})
 ```
 
 ### Policy Evaluation

@@ -130,6 +130,17 @@ export declare type AuthorizeRequest = Message<"coresdk.v1.AuthorizeRequest"> & 
    * @generated from field: string token = 7;
    */
   token: string;
+
+  /**
+   * OAuth 2.0 scope requirement (RFC 6749 sec 3.3). Space-separated list of
+   * scope names; multiple values mean "all of these" (logical AND). When
+   * empty, no scope filter is applied. Wildcard matching at the dot boundary
+   * is supported on the granted side (a granted `jobs.*` satisfies a
+   * required `jobs.write`). Added in proto v1.2.
+   *
+   * @generated from field: string required_scope = 8;
+   */
+  requiredScope: string;
 };
 
 /**

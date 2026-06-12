@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AuthorizeRequest, AuthorizeResponse, GetJwksRequest, GetJwksResponse, IsRevokedRequest, IsRevokedResponse, RefreshTokenRequest, RefreshTokenResponse, RevokeTokenRequest, RevokeTokenResponse, ValidateSamlAssertionRequest, ValidateSamlAssertionResponse, ValidateTokenRequest, ValidateTokenResponse } from "./auth_pbjs";
+import { AuthorizeRequest, AuthorizeResponse, GetJwksRequest, GetJwksResponse, IsRevokedRequest, IsRevokedResponse, RefreshTokenRequest, RefreshTokenResponse, RevokeTokenRequest, RevokeTokenResponse, ValidatePlatformContextRequest, ValidatePlatformContextResponse, ValidateSamlAssertionRequest, ValidateSamlAssertionResponse, ValidateTokenRequest, ValidateTokenResponse } from "./auth_pbjs";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -76,6 +76,23 @@ export declare const AuthService: {
       readonly name: "RefreshToken",
       readonly I: typeof RefreshTokenRequest,
       readonly O: typeof RefreshTokenResponse,
+      readonly kind: MethodKind.Unary,
+    },
+    /**
+     * AP-06 (#205): Validate a base64-encoded PlatformContext issued to an
+     * app-store app. The sidecar verifies the HMAC-SHA256 signature using the
+     * app's stored client_secret, checks the issued_at TTL, and filters the
+     * embedded permissions against the current grants in
+     * `core_app_permission_grants` (real-time, not cached). Apps receive the
+     * filtered permission list instead of doing HMAC validation themselves,
+     * which closes the 6-minute revocation window (TTL 300s + 60s skew).
+     *
+     * @generated from rpc coresdk.v1.AuthService.ValidatePlatformContext
+     */
+    readonly validatePlatformContext: {
+      readonly name: "ValidatePlatformContext",
+      readonly I: typeof ValidatePlatformContextRequest,
+      readonly O: typeof ValidatePlatformContextResponse,
       readonly kind: MethodKind.Unary,
     },
   }

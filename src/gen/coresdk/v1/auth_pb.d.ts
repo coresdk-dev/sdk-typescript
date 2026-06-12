@@ -395,6 +395,80 @@ export declare type RefreshTokenResponse = Message<"coresdk.v1.RefreshTokenRespo
 export declare const RefreshTokenResponseSchema: GenMessage<RefreshTokenResponse>;
 
 /**
+ * @generated from message coresdk.v1.ValidatePlatformContextRequest
+ */
+export declare type ValidatePlatformContextRequest = Message<"coresdk.v1.ValidatePlatformContextRequest"> & {
+  /**
+   * Base64-encoded PlatformContext JSON produced by the control plane when
+   * the app-store app was launched. The JSON payload contains:
+   *   { tenant_id, client_id, permissions[], signature, issued_at }
+   * where `signature` is HMAC-SHA256 over the canonical JSON of the other
+   * fields, keyed with the app's stored client_secret.
+   *
+   * @generated from field: string raw_context = 1;
+   */
+  rawContext: string;
+
+  /**
+   * Tenant the request is scoped to. Must match `tenant_id` inside the
+   * decoded context; a mismatch is rejected as INVALID_ARGUMENT.
+   *
+   * @generated from field: string tenant_id = 2;
+   */
+  tenantId: string;
+
+  /**
+   * App's client_id. Must match `client_id` inside the decoded context.
+   *
+   * @generated from field: string client_id = 3;
+   */
+  clientId: string;
+};
+
+/**
+ * Describes the message coresdk.v1.ValidatePlatformContextRequest.
+ * Use `create(ValidatePlatformContextRequestSchema)` to create a new message.
+ */
+export declare const ValidatePlatformContextRequestSchema: GenMessage<ValidatePlatformContextRequest>;
+
+/**
+ * @generated from message coresdk.v1.ValidatePlatformContextResponse
+ */
+export declare type ValidatePlatformContextResponse = Message<"coresdk.v1.ValidatePlatformContextResponse"> & {
+  /**
+   * `true` when the HMAC verified, the TTL hasn't elapsed, and the
+   * tenant/client matched. `false` for any validation failure (see `error`).
+   *
+   * @generated from field: bool valid = 1;
+   */
+  valid: boolean;
+
+  /**
+   * The permissions the app currently holds — i.e. the intersection of
+   * `permissions` inside the PlatformContext and the live rows in
+   * `core_app_permission_grants` (non-revoked, non-expired). Empty when
+   * `valid` is `false`.
+   *
+   * @generated from field: repeated string permissions = 2;
+   */
+  permissions: string[];
+
+  /**
+   * Human-readable diagnostic for failures (e.g. "signature mismatch",
+   * "context expired", "tenant_id mismatch"). Absent on success.
+   *
+   * @generated from field: string error = 3;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message coresdk.v1.ValidatePlatformContextResponse.
+ * Use `create(ValidatePlatformContextResponseSchema)` to create a new message.
+ */
+export declare const ValidatePlatformContextResponseSchema: GenMessage<ValidatePlatformContextResponse>;
+
+/**
  * @generated from service coresdk.v1.AuthService
  */
 export declare const AuthService: GenService<{
@@ -456,6 +530,22 @@ export declare const AuthService: GenService<{
     methodKind: "unary";
     input: typeof RefreshTokenRequestSchema;
     output: typeof RefreshTokenResponseSchema;
+  },
+  /**
+   * AP-06 (#205): Validate a base64-encoded PlatformContext issued to an
+   * app-store app. The sidecar verifies the HMAC-SHA256 signature using the
+   * app's stored client_secret, checks the issued_at TTL, and filters the
+   * embedded permissions against the current grants in
+   * `core_app_permission_grants` (real-time, not cached). Apps receive the
+   * filtered permission list instead of doing HMAC validation themselves,
+   * which closes the 6-minute revocation window (TTL 300s + 60s skew).
+   *
+   * @generated from rpc coresdk.v1.AuthService.ValidatePlatformContext
+   */
+  validatePlatformContext: {
+    methodKind: "unary";
+    input: typeof ValidatePlatformContextRequestSchema;
+    output: typeof ValidatePlatformContextResponseSchema;
   },
 }>;
 

@@ -212,6 +212,231 @@ export declare type QueryAuditResponse = Message<"coresdk.v1.QueryAuditResponse"
 export declare const QueryAuditResponseSchema: GenMessage<QueryAuditResponse>;
 
 /**
+ * / Unified auth audit event — mirrors the Rust `AuthEvent` struct defined in
+ * / `crates/coresdk-events/src/auth_event.rs`. One schema covers user auth,
+ * / app auth, federation, permission, OAuth, and secret-access events across
+ * / all cPod services.
+ *
+ * @generated from message coresdk.v1.AuthEventProto
+ */
+export declare type AuthEventProto = Message<"coresdk.v1.AuthEventProto"> & {
+  /**
+   * / UUID v7 (time-ordered) for efficient index scans.
+   *
+   * @generated from field: string event_id = 1;
+   */
+  eventId: string;
+
+  /**
+   * / What happened — wire-format string (e.g. "auth.login.password").
+   *
+   * @generated from field: string event_type = 2;
+   */
+  eventType: string;
+
+  /**
+   * / Which service emitted this event (e.g. "control_plane", "sidecar").
+   *
+   * @generated from field: string source = 3;
+   */
+  source: string;
+
+  /**
+   * / When it happened (Unix epoch milliseconds).
+   *
+   * @generated from field: int64 timestamp = 4;
+   */
+  timestamp: bigint;
+
+  /**
+   * / Tenant context — always present for multi-tenant isolation.
+   *
+   * @generated from field: string tenant_id = 5;
+   */
+  tenantId: string;
+
+  /**
+   * / What happened to the action: "success", "failure", "blocked", "revoked".
+   *
+   * @generated from field: string outcome = 6;
+   */
+  outcome: string;
+
+  /**
+   * ── Subject (who is acting) ──────────────────────────────────────────────
+   * / Subject discriminator: "user", "app", "user_via_app", "anonymous".
+   *
+   * @generated from field: string subject_kind = 7;
+   */
+  subjectKind: string;
+
+  /**
+   * / Primary subject identifier (user_id, app_id, or IP for anonymous).
+   *
+   * @generated from field: string subject_id = 8;
+   */
+  subjectId: string;
+
+  /**
+   * / User email (only for subject_kind = "user" or "user_via_app").
+   *
+   * @generated from field: string subject_email = 9;
+   */
+  subjectEmail: string;
+
+  /**
+   * / OAuth client_id (only for subject_kind = "app" or "user_via_app").
+   *
+   * @generated from field: string subject_client_id = 10;
+   */
+  subjectClientId: string;
+
+  /**
+   * / App ID for user_via_app subject kind.
+   *
+   * @generated from field: string subject_app_id = 11;
+   */
+  subjectAppId: string;
+
+  /**
+   * ── Resource (what was accessed, optional) ────────────────────────────────
+   * / Resource type (e.g. "tenant", "app", "user", "secret", "policy").
+   *
+   * @generated from field: string resource_type = 12;
+   */
+  resourceType: string;
+
+  /**
+   * / Resource identifier.
+   *
+   * @generated from field: string resource_id = 13;
+   */
+  resourceId: string;
+
+  /**
+   * / Action performed on the resource (e.g. "read", "write", "delete").
+   *
+   * @generated from field: string resource_action = 14;
+   */
+  resourceAction: string;
+
+  /**
+   * ── Network context ───────────────────────────────────────────────────────
+   * / Client IP address.
+   *
+   * @generated from field: string network_ip = 15;
+   */
+  networkIp: string;
+
+  /**
+   * / User-Agent header (if available).
+   *
+   * @generated from field: string network_user_agent = 16;
+   */
+  networkUserAgent: string;
+
+  /**
+   * / Country code (ISO 3166-1 alpha-2, if geo-IP resolved).
+   *
+   * @generated from field: string network_country = 17;
+   */
+  networkCountry: string;
+
+  /**
+   * ── Event-specific metadata ────────────────────────────────────────────────
+   * / Typed per event_type, serialized as JSON.
+   *
+   * @generated from field: string metadata_json = 18;
+   */
+  metadataJson: string;
+
+  /**
+   * ── Correlation ────────────────────────────────────────────────────────────
+   * / Ties related events: login -> token issue -> API calls.
+   *
+   * @generated from field: string session_id = 19;
+   */
+  sessionId: string;
+
+  /**
+   * / Ties to distributed request tracing.
+   *
+   * @generated from field: string request_id = 20;
+   */
+  requestId: string;
+
+  /**
+   * / For causal chains: this event was caused by another event.
+   *
+   * @generated from field: string parent_event_id = 21;
+   */
+  parentEventId: string;
+
+  /**
+   * ── OTel correlation ──────────────────────────────────────────────────────
+   * / W3C trace context trace_id (32 hex chars).
+   *
+   * @generated from field: string trace_id = 22;
+   */
+  traceId: string;
+
+  /**
+   * / W3C trace context span_id (16 hex chars).
+   *
+   * @generated from field: string span_id = 23;
+   */
+  spanId: string;
+
+  /**
+   * ── Security classification ───────────────────────────────────────────────
+   * / MITRE ATT&CK technique ID (e.g. "T1078" for Valid Accounts).
+   *
+   * @generated from field: string mitre_technique_id = 24;
+   */
+  mitreTechniqueId: string;
+
+  /**
+   * / Severity for security-relevant events: "critical", "high", "medium", "low", "info".
+   *
+   * @generated from field: string severity = 25;
+   */
+  severity: string;
+};
+
+/**
+ * Describes the message coresdk.v1.AuthEventProto.
+ * Use `create(AuthEventProtoSchema)` to create a new message.
+ */
+export declare const AuthEventProtoSchema: GenMessage<AuthEventProto>;
+
+/**
+ * / Response for EmitAuthEvent RPC.
+ *
+ * @generated from message coresdk.v1.EmitAuthEventResponse
+ */
+export declare type EmitAuthEventResponse = Message<"coresdk.v1.EmitAuthEventResponse"> & {
+  /**
+   * / Whether the event was accepted for processing.
+   *
+   * @generated from field: bool accepted = 1;
+   */
+  accepted: boolean;
+
+  /**
+   * / Diagnostic for rejected events.
+   *
+   * @generated from field: coresdk.v1.ProblemDetail error = 2;
+   */
+  error?: ProblemDetail | undefined;
+};
+
+/**
+ * Describes the message coresdk.v1.EmitAuthEventResponse.
+ * Use `create(EmitAuthEventResponseSchema)` to create a new message.
+ */
+export declare const EmitAuthEventResponseSchema: GenMessage<EmitAuthEventResponse>;
+
+/**
  * @generated from service coresdk.v1.AuditService
  */
 export declare const AuditService: GenService<{
@@ -222,6 +447,14 @@ export declare const AuditService: GenService<{
     methodKind: "unary";
     input: typeof EmitAuditEventRequestSchema;
     output: typeof EmitAuditEventResponseSchema;
+  },
+  /**
+   * @generated from rpc coresdk.v1.AuditService.EmitAuthEvent
+   */
+  emitAuthEvent: {
+    methodKind: "unary";
+    input: typeof AuthEventProtoSchema;
+    output: typeof EmitAuthEventResponseSchema;
   },
   /**
    * @generated from rpc coresdk.v1.AuditService.QueryAudit

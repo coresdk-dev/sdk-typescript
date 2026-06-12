@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { EmitAuditEventRequest, EmitAuditEventResponse, QueryAuditRequest, QueryAuditResponse } from "./audit_pbjs";
+import { AuthEventProto, EmitAuditEventRequest, EmitAuditEventResponse, EmitAuthEventResponse, QueryAuditRequest, QueryAuditResponse } from "./audit_pbjs";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -19,6 +19,15 @@ export declare const AuditService: {
       readonly name: "EmitAuditEvent",
       readonly I: typeof EmitAuditEventRequest,
       readonly O: typeof EmitAuditEventResponse,
+      readonly kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc coresdk.v1.AuditService.EmitAuthEvent
+     */
+    readonly emitAuthEvent: {
+      readonly name: "EmitAuthEvent",
+      readonly I: typeof AuthEventProto,
+      readonly O: typeof EmitAuthEventResponse,
       readonly kind: MethodKind.Unary,
     },
     /**

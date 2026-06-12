@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { EmitAuditEventRequest, EmitAuditEventResponse, QueryAuditRequest, QueryAuditResponse } from "./audit_pbjs";
+import { AuthEventProto, EmitAuditEventRequest, EmitAuditEventResponse, EmitAuthEventResponse, QueryAuditRequest, QueryAuditResponse } from "./audit_pbjs";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -19,6 +19,15 @@ export const AuditService = {
       name: "EmitAuditEvent",
       I: EmitAuditEventRequest,
       O: EmitAuditEventResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc coresdk.v1.AuditService.EmitAuthEvent
+     */
+    emitAuthEvent: {
+      name: "EmitAuthEvent",
+      I: AuthEventProto,
+      O: EmitAuthEventResponse,
       kind: MethodKind.Unary,
     },
     /**

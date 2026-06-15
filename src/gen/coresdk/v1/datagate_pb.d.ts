@@ -278,7 +278,8 @@ export declare type AgentSpawnGateResponse = Message<"coresdk.v1.AgentSpawnGateR
   /**
    * Minted agent JWT (only when allowed = true).
    * sub: "agent:{agent_id}@user:{user_id}@tenant:{tenant_id}"
-   * typ: "agent"
+   * principal_type: "agent"
+   * grant_type: "agent_spawn"
    * TTL clamped to [1, 300] seconds.
    *
    * @generated from field: string agent_token = 3;

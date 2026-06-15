@@ -65,6 +65,15 @@ export declare type PolicyEvaluateResponse = Message<"coresdk.v1.PolicyEvaluateR
    * @generated from field: coresdk.v1.ProblemDetail error = 4;
    */
   error?: ProblemDetail | undefined;
+
+  /**
+   * Populated when the evaluated rule is data.cyberpod.resource_permission.*
+   * Absent for plain RBAC evaluations; callers check resource_perm != null.
+   * Field numbers 10+ reserved for structured decision extensions.
+   *
+   * @generated from field: coresdk.v1.ResourcePermDecision resource_perm = 10;
+   */
+  resourcePerm?: ResourcePermDecision | undefined;
 };
 
 /**
@@ -72,6 +81,117 @@ export declare type PolicyEvaluateResponse = Message<"coresdk.v1.PolicyEvaluateR
  * Use `create(PolicyEvaluateResponseSchema)` to create a new message.
  */
 export declare const PolicyEvaluateResponseSchema: GenMessage<PolicyEvaluateResponse>;
+
+/**
+ * Structured output from data.cyberpod.resource_permission.decision.
+ * Carries the full 7-layer decision so callers don't need to parse free-form reason strings.
+ *
+ * @generated from message coresdk.v1.ResourcePermDecision
+ */
+export declare type ResourcePermDecision = Message<"coresdk.v1.ResourcePermDecision"> & {
+  /**
+   * "allow" | "deny" | "mask" | "require_approval"
+   *
+   * @generated from field: string decision = 1;
+   */
+  decision: string;
+
+  /**
+   * Canonical reason code from the 15-code taxonomy (e.g. "acl_denied", "tenant_mismatch").
+   *
+   * @generated from field: string reason_code = 2;
+   */
+  reasonCode: string;
+
+  /**
+   * Safe-to-log human detail. No secrets or restricted data.
+   *
+   * @generated from field: string reason_detail = 3;
+   */
+  reasonDetail: string;
+
+  /**
+   * Policy bundle version that produced this decision.
+   *
+   * @generated from field: string policy_version = 4;
+   */
+  policyVersion: string;
+
+  /**
+   * What the caller must do as a result of an allow/mask decision.
+   *
+   * @generated from field: coresdk.v1.ResourcePermObligations obligations = 5;
+   */
+  obligations?: ResourcePermObligations | undefined;
+
+  /**
+   * Recommended HTTP status to return to the end-user. 200 on allow; 403/451/429 on deny.
+   *
+   * @generated from field: int32 safe_http_status = 6;
+   */
+  safeHttpStatus: number;
+
+  /**
+   * Caller-generated stable correlation ID (recommended format: "pdec_<uuid7>").
+   * Used for audit log correlation and OTel trace linking.
+   *
+   * @generated from field: string decision_id = 7;
+   */
+  decisionId: string;
+};
+
+/**
+ * Describes the message coresdk.v1.ResourcePermDecision.
+ * Use `create(ResourcePermDecisionSchema)` to create a new message.
+ */
+export declare const ResourcePermDecisionSchema: GenMessage<ResourcePermDecision>;
+
+/**
+ * @generated from message coresdk.v1.ResourcePermObligations
+ */
+export declare type ResourcePermObligations = Message<"coresdk.v1.ResourcePermObligations"> & {
+  /**
+   * When true, the calling service must emit an audit event for this access.
+   *
+   * @generated from field: bool audit = 1;
+   */
+  audit: boolean;
+
+  /**
+   * Field classes that must be masked before returning the resource to the caller.
+   * Empty when the decision is "deny" or no field masking applies.
+   *
+   * @generated from field: repeated string mask_field_classes = 2;
+   */
+  maskFieldClasses: string[];
+
+  /**
+   * Row limit for list/query results. 0 = no limit.
+   *
+   * @generated from field: int64 max_rows = 3;
+   */
+  maxRows: bigint;
+
+  /**
+   * RFC-3339 timestamp after which the delegation grant expires. Empty = no expiry.
+   *
+   * @generated from field: string expires_at = 4;
+   */
+  expiresAt: string;
+
+  /**
+   * "export_approval" | "share_approval" | "copy_approval" | "" when no approval gate.
+   *
+   * @generated from field: string requires_approval_type = 5;
+   */
+  requiresApprovalType: string;
+};
+
+/**
+ * Describes the message coresdk.v1.ResourcePermObligations.
+ * Use `create(ResourcePermObligationsSchema)` to create a new message.
+ */
+export declare const ResourcePermObligationsSchema: GenMessage<ResourcePermObligations>;
 
 /**
  * @generated from message coresdk.v1.WatchPolicyUpdatesRequest
